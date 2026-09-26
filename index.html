@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>엘니뇨·라니냐 탐구실</title>
+<meta name="description" content="무역풍 세기에 따른 적도 태평양의 변화, 평상시·엘니뇨·라니냐 비교, 남방진동을 모식도로 탐구하는 웹앱">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="1" y="1" width="38" height="38" rx="10" style="fill:var(--accent)"/>
+        <path d="M6 15 h10 l-3 -3 M16 15 l-3 3" style="stroke:var(--on-accent)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(34 0) scale(-1 1)"/>
+        <path d="M5 24 C 10 20, 15 20, 20 23 S 30 27, 35 22" style="stroke:var(--on-accent)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M5 30 C 12 28, 22 29, 35 26" style="stroke:var(--on-accent)" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".6"/>
+      </svg>
+      <div>
+        <h1>엘니뇨·라니냐 탐구실</h1>
+        <p>지구과학Ⅰ · 대기와 해양의 상호 작용</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="탐구 활동">
+      <button type="button" role="tab" id="tabbtn-wind" aria-controls="tab-wind" aria-selected="true"><span class="num">1</span>무역풍 실험</button>
+      <button type="button" role="tab" id="tabbtn-compare" aria-controls="tab-compare" aria-selected="false" tabindex="-1"><span class="num">2</span>세 상태 비교</button>
+      <button type="button" role="tab" id="tabbtn-so" aria-controls="tab-so" aria-selected="false" tabindex="-1"><span class="num">3</span>남방진동</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ① 무역풍 실험 -->
+    <section class="tabpanel" id="tab-wind" role="tabpanel" aria-labelledby="tabbtn-wind">
+      <div class="wind-grid">
+        <div class="card stage-card">
+          <div class="stage" id="wind-stage">
+            <canvas id="wind-canvas" role="img" aria-label="적도 태평양 연직 단면"></canvas>
+            <div class="badge" id="wind-badge" data-phase="normal">평상시</div>
+          </div>
+
+          <div class="controls">
+            <div class="slider-block">
+              <div class="slider-head">
+                <label for="wind-slider">무역풍 세기</label>
+                <output id="wind-out" for="wind-slider">평상시</output>
+              </div>
+              <input type="range" id="wind-slider" min="-100" max="100" step="1" value="0">
+              <div class="slider-scale" aria-hidden="true">
+                <span>약함</span><span>평상시</span><span>강함</span>
+              </div>
+            </div>
+            <div class="presets" role="group" aria-label="빠른 선택">
+              <button type="button" class="preset" data-target="-0.85" data-phase="nino" id="preset-nino">엘니뇨</button>
+              <button type="button" class="preset" data-target="0" data-phase="normal" id="preset-normal">평상시</button>
+              <button type="button" class="preset" data-target="0.85" data-phase="nina" id="preset-nina">라니냐</button>
+            </div>
+          </div>
+
+          <div class="legend-row">
+            <div class="cbar-wrap">
+              <span class="cbar-label">수온</span>
+              <div class="cbar" id="wind-cbar"></div>
+              <div class="cbar-ticks" id="wind-cbar-ticks"></div>
+            </div>
+            <ul class="keys">
+              <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" stroke="#243440" stroke-width="4.4" stroke-linecap="round"/><path d="M1 5 H25" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>수온 약층 시작</li>
+              <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--ink)" stroke-width="1.6" stroke-dasharray="5 4"/></svg>평상시</li>
+              <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M25 5 H6 M9 1.5 L4 5 L9 8.5" style="stroke:var(--ink-2)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>표층 해수</li>
+              <li><svg viewBox="0 0 16 14" aria-hidden="true"><path d="M8 13 V3 M4 6.5 L8 2 L12 6.5" stroke="#2a8fb8" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>용승</li>
+            </ul>
+            <div class="toggles" role="group" aria-label="보기 설정">
+              <label class="chk"><input type="checkbox" id="wind-iso" checked><span>등온선</span></label>
+              <label class="chk"><input type="checkbox" id="wind-ghost" checked><span>평상시 선</span></label>
+              <label class="chk"><input type="checkbox" id="wind-motion" checked><span>움직임</span></label>
+            </div>
+          </div>
+        </div>
+
+        <aside class="card readout" aria-label="서태평양과 동태평양 비교">
+          <div class="ro-head">
+            <span></span>
+            <span><b>서</b>태평양<small>150°E</small></span>
+            <span><b>동</b>태평양<small>90°W</small></span>
+          </div>
+          <div class="ro-row">
+            <span class="ro-label">표층 수온</span>
+            <span class="ro-cell"><span class="ro-val mono" id="ro-sst-w">29.6</span><span class="ro-unit">°C</span><span class="ro-bar"><i id="ro-sst-bw"></i></span><span class="ro-d" id="ro-sst-dw"></span></span>
+            <span class="ro-cell"><span class="ro-val mono" id="ro-sst-e">24.0</span><span class="ro-unit">°C</span><span class="ro-bar"><i id="ro-sst-be"></i></span><span class="ro-d" id="ro-sst-de"></span></span>
+          </div>
+          <div class="ro-row">
+            <span class="ro-label">수온 약층<br>시작 깊이</span>
+            <span class="ro-cell"><span class="ro-val mono" id="ro-mld-w">83</span><span class="ro-unit">m</span><span class="ro-bar depth"><i id="ro-mld-bw"></i></span><span class="ro-d" id="ro-mld-dw"></span></span>
+            <span class="ro-cell"><span class="ro-val mono" id="ro-mld-e">22</span><span class="ro-unit">m</span><span class="ro-bar depth"><i id="ro-mld-be"></i></span><span class="ro-d" id="ro-mld-de"></span></span>
+          </div>
+          <div class="ro-row">
+            <span class="ro-label">해수면<br><small>평상시 대비</small></span>
+            <span class="ro-cell"><span class="ro-val mono" id="ro-eta-w">0</span><span class="ro-unit">cm</span><span class="ro-bar mid"><i id="ro-eta-bw"></i></span></span>
+            <span class="ro-cell"><span class="ro-val mono" id="ro-eta-e">0</span><span class="ro-unit">cm</span><span class="ro-bar mid"><i id="ro-eta-be"></i></span></span>
+          </div>
+          <div class="ro-row">
+            <span class="ro-label">용승</span>
+            <span class="ro-cell ro-none">–</span>
+            <span class="ro-cell"><span class="ro-meter" id="ro-up" aria-label="용승 세기"><i></i><i></i><i></i><i></i><i></i></span></span>
+          </div>
+          <div class="ro-tiles">
+            <div class="tile">
+              <span class="tile-label">해수면 높이 차 <small>서 − 동</small></span>
+              <span class="tile-val mono"><span id="ro-diff">39</span><small>cm</small></span>
+              <svg class="tile-fig" viewBox="0 0 120 34" aria-hidden="true">
+                <path id="ro-diff-sea" d="M4 12 L116 22 L116 32 L4 32 Z" stroke-width="1.2" style="fill:var(--nina-soft);stroke:var(--nina)"/>
+              </svg>
+            </div>
+            <div class="tile">
+              <span class="tile-label">엘니뇨 감시 구역 수온 편차 <small>5°S~5°N, 170°W~120°W</small></span>
+              <span class="tile-val mono"><span id="ro-nino">+0.0</span><small>°C</small></span>
+              <div class="nino-scale" aria-hidden="true">
+                <span class="zone z-nina"></span><span class="zone z-normal"></span><span class="zone z-nino"></span>
+                <i id="ro-nino-mark"></i>
+                <span class="ns-t" style="left:0">−2</span><span class="ns-t" style="left:40%">−0.5</span><span class="ns-t" style="left:60%">+0.5</span><span class="ns-t" style="left:100%">+3</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <ol class="chain" id="wind-chain" aria-label="원인과 결과">
+        <li data-k="wind"><span class="c-q">무역풍</span><span class="c-v"></span></li>
+        <li data-k="trans"><span class="c-q">서쪽으로 가는 표층 해수</span><span class="c-v"></span></li>
+        <li data-k="up"><span class="c-q">동태평양 용승</span><span class="c-v"></span></li>
+        <li data-k="sste"><span class="c-q">동태평양 표층 수온</span><span class="c-v"></span></li>
+        <li data-k="tilt"><span class="c-q">수온 약층 기울기</span><span class="c-v"></span></li>
+        <li data-k="sl"><span class="c-q">해수면 높이</span><span class="c-v"></span></li>
+      </ol>
+      <p class="footnote">해수면 높이 차와 수심은 과장해서 그렸고, 수치는 관측값의 대략적인 크기에 맞춘 모식값입니다. 엘니뇨·라니냐는 이런 상태가 몇 달 이상 계속될 때를 말합니다.</p>
+    </section>
+
+    <!-- ② 세 상태 비교 -->
+    <section class="tabpanel" id="tab-compare" role="tabpanel" aria-labelledby="tabbtn-compare" hidden>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="색으로 나타낼 값">
+          <button type="button" id="cmp-mode-temp" aria-pressed="true">수온</button>
+          <button type="button" id="cmp-mode-anom" aria-pressed="false">평상시와의 차이</button>
+        </div>
+        <div class="cbar-wrap small">
+          <div class="cbar" id="cmp-cbar"></div>
+          <div class="cbar-ticks" id="cmp-cbar-ticks"></div>
+        </div>
+        <div class="toggles" role="group" aria-label="보기 설정">
+          <label class="chk"><input type="checkbox" id="cmp-walker" checked><span>대기 순환</span></label>
+          <label class="chk"><input type="checkbox" id="cmp-flow" checked><span>해수 흐름</span></label>
+          <label class="chk"><input type="checkbox" id="cmp-iso"><span>등온선</span></label>
+          <label class="chk"><input type="checkbox" id="cmp-motion" checked><span>움직임</span></label>
+        </div>
+      </div>
+
+      <div class="triptych">
+        <figure class="card cmp" data-s="0">
+          <figcaption><span class="chip" data-phase="normal">평상시</span><span class="cap-sub">무역풍 보통</span></figcaption>
+          <canvas id="cmp-0" role="img" aria-label="평상시 적도 태평양 단면"></canvas>
+        </figure>
+        <figure class="card cmp" data-s="-0.85">
+          <figcaption><span class="chip" data-phase="nino">엘니뇨</span><span class="cap-sub">무역풍 약화</span></figcaption>
+          <canvas id="cmp-1" role="img" aria-label="엘니뇨 때 적도 태평양 단면"></canvas>
+        </figure>
+        <figure class="card cmp" data-s="0.85">
+          <figcaption><span class="chip" data-phase="nina">라니냐</span><span class="cap-sub">무역풍 강화</span></figcaption>
+          <canvas id="cmp-2" role="img" aria-label="라니냐 때 적도 태평양 단면"></canvas>
+        </figure>
+      </div>
+      <p class="hint" id="cmp-hint">그림 위를 누르거나 움직이면 세 그림의 같은 경도를 함께 비교합니다.</p>
+
+      <div class="card matrix-card">
+        <div class="table-scroll">
+          <table class="matrix">
+            <thead>
+              <tr><th scope="col"></th><th scope="col"><span class="chip" data-phase="normal">평상시</span></th><th scope="col"><span class="chip" data-phase="nino">엘니뇨</span></th><th scope="col"><span class="chip" data-phase="nina">라니냐</span></th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">무역풍</th><td>동 → 서</td><td class="dn">약해짐</td><td class="up">강해짐</td></tr>
+              <tr><th scope="row">동태평양 용승</th><td>활발</td><td class="dn">약해짐</td><td class="up">강해짐</td></tr>
+              <tr><th scope="row">동태평양 표층 수온</th><td>낮음</td><td class="up">높아짐</td><td class="dn">낮아짐</td></tr>
+              <tr><th scope="row">서태평양 표층 수온</th><td>높음</td><td class="dn">낮아짐</td><td class="up">높아짐</td></tr>
+              <tr><th scope="row">동태평양 수온 약층 시작 깊이</th><td>얕음</td><td class="up">깊어짐</td><td class="dn">얕아짐</td></tr>
+              <tr><th scope="row">수온 약층 기울기</th><td>서쪽이 깊음</td><td class="dn">완만해짐</td><td class="up">급해짐</td></tr>
+              <tr><th scope="row">해수면 높이</th><td>서 &gt; 동</td><td><span class="dn">서</span> · <span class="up">동</span></td><td><span class="up">서</span> · <span class="dn">동</span></td></tr>
+              <tr><th scope="row">상승 기류·비</th><td>서태평양</td><td class="shift">중앙 태평양 쪽으로 이동</td><td class="up">서태평양에서 더 강해짐</td></tr>
+              <tr><th scope="row">서태평양 기압 · 날씨</th><td>저기압 · 비</td><td><span class="up">기압</span> · 가뭄, 산불</td><td><span class="dn">기압</span> · 강수량 증가</td></tr>
+              <tr><th scope="row">동태평양 기압 · 날씨</th><td>고기압 · 건조</td><td><span class="dn">기압</span> · 강수량 증가</td><td><span class="up">기압</span> · 더 건조</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="footnote">▲ 평상시보다 높아지거나 강해짐 · ▼ 낮아지거나 약해짐</p>
+      </div>
+    </section>
+
+    <!-- ③ 남방진동 -->
+    <section class="tabpanel" id="tab-so" role="tabpanel" aria-labelledby="tabbtn-so" hidden>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="상태 선택">
+          <button type="button" id="so-normal" data-s="0" data-phase="normal" aria-pressed="true">평상시</button>
+          <button type="button" id="so-nino" data-s="-0.85" data-phase="nino" aria-pressed="false">엘니뇨</button>
+          <button type="button" id="so-nina" data-s="0.85" data-phase="nina" aria-pressed="false">라니냐</button>
+        </div>
+        <button type="button" class="play" id="so-play" aria-pressed="false">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path class="ic-play" d="M4 2.5 L13 8 L4 13.5 Z"/><path class="ic-pause" d="M4 2.5 H7 V13.5 H4 Z M9.5 2.5 H12.5 V13.5 H9.5 Z"/></svg>
+          <span>시간 흐름 재생</span>
+        </button>
+        <label class="chk"><input type="checkbox" id="so-motion" checked><span>움직임</span></label>
+      </div>
+
+      <div class="card map-card">
+        <div class="stage">
+          <canvas id="so-map" role="img" aria-label="열대 태평양의 워커 순환과 기압"></canvas>
+          <div class="badge" id="so-badge" data-phase="normal">평상시</div>
+        </div>
+        <ul class="keys map-keys">
+          <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--walker)" stroke-width="4" stroke-linecap="round"/></svg>워커 순환</li>
+          <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--surface-wind)" stroke-width="4" stroke-linecap="round"/></svg>지표 부근 바람</li>
+          <li><span class="gauge-key">▲</span>평상시보다 기압 높음</li>
+          <li><span class="gauge-key lo">▼</span>평상시보다 기압 낮음</li>
+        </ul>
+      </div>
+
+      <div class="so-grid">
+        <div class="card seesaw-card">
+          <h2>기압 시소</h2>
+          <svg id="so-seesaw" viewBox="0 0 400 230" role="img" aria-label="다윈과 타히티의 기압 시소"></svg>
+          <div class="soi">
+            <div class="soi-head"><span>남방진동 지수</span><span class="soi-formula">타히티 기압 편차 − 다윈 기압 편차</span></div>
+            <div class="soi-bar"><i id="soi-needle"></i></div>
+            <div class="soi-scale" aria-hidden="true"><span class="soi-neg">− 엘니뇨</span><span class="soi-zero">0</span><span class="soi-pos">라니냐 +</span></div>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <h2>시간에 따른 변화 <span class="tag">모식 그래프</span></h2>
+          <div class="chart-scroll"><svg id="so-chart" viewBox="0 0 640 314" role="img" aria-label="동태평양 수온 편차와 남방진동 지수의 모식 그래프"></svg></div>
+          <p class="footnote">그래프를 누르면 그 시기로 이동합니다. 실제 관측 자료가 아니라 두 값이 반대로 움직이는 관계를 보여 주는 모식 그래프입니다.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<noscript><p class="noscript">이 웹앱은 JavaScript가 켜져 있어야 동작합니다.</p></noscript>
+
+<script src="js/land.js"></script>
+<script src="js/model.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/tab-wind.js"></script>
+<script src="js/tab-compare.js"></script>
+<script src="js/tab-so.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
