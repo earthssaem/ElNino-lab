@@ -511,8 +511,20 @@ input[type="range"]::-moz-range-thumb {
   gap: 12px;
 }
 .cmp { margin: 0; padding: 8px 8px 6px; }
-.cmp figcaption { display: flex; align-items: center; gap: 8px; padding: 2px 4px 8px; }
+.cmp figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 2px 4px 8px; }
 .cap-sub { font-size: 13px; color: var(--muted); font-weight: 600; }
+/* 넓은 모니터에서는 세 그림만 본문보다 넓게(최대 1600px) 펼친다 */
+@media (min-width: 1340px) {
+  #tab-compare .triptych { margin-inline: calc((min(100vw - 56px, 1600px) - 100%) / -2); }
+}
+/* 가로 3단이 좁아지는 화면(옆 패널, 배율 125~150 %)에서도 나란히 보이도록 여백을 줄인다 */
+@media (max-width: 1000px) {
+  .triptych { gap: 8px; }
+  .cmp { padding: 6px 6px 4px; }
+  .cmp figcaption { padding: 0 2px 6px; }
+  .cmp .chip { font-size: 13px; padding: 2px 9px; }
+  .cap-sub { font-size: 12px; }
+}
 .cmp canvas { border-radius: 8px; cursor: crosshair; }
 
 .matrix-card { padding: 6px 12px 12px; }
@@ -603,8 +615,10 @@ input[type="range"]::-moz-range-thumb {
   .ro-tiles { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 900px) {
-  .triptych { grid-template-columns: minmax(0, 1fr); }
   .so-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .triptych { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 }
 @media (max-width: 640px) {
   .app { padding-inline: 16px; }
