@@ -66,9 +66,21 @@
   }
 
   function resize(p) {
-    var w = Math.round(p.cv.parentNode.clientWidth - 16);
+    var cs = getComputedStyle(p.fig);
+    var w = Math.round(p.fig.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
     if (w <= 0) return;
-    var h = Math.round(w > 600 ? w * 0.6 : w * 1.02);
+    var grid = p.fig.parentNode.clientWidth;
+    var h;
+    if (p.fig.offsetWidth > grid * 0.6) {
+      // 한 줄에 하나씩 (휴대폰)
+      h = Math.round(w > 600 ? w * 0.6 : w * 1.02);
+    } else {
+      // 가로 3단: 세 그림이 스크롤 없이 한 화면에 들어오도록 화면 높이에 맞춘다
+      var top = Math.max.apply(null, panels.map(function (q) { return q.cv.getBoundingClientRect().top; })) +
+        (window.scrollY || window.pageYOffset || 0);
+      var avail = window.innerHeight - top - parseFloat(cs.paddingBottom) - 14;
+      h = Math.round(clamp(avail, Math.max(200, w * 0.62), w * 1.05));
+    }
     if (w === p.W && h === p.H) return;
     p.W = w; p.H = h;
     p.dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -150,7 +162,7 @@
   };
   M.show = function () { visible = true; dirty = true; panels.forEach(resize); };
   M.hide = function () { visible = false; };
-  M.redraw = function () { themeTick++; dirty = true; };
+  M.redraw = function () { themeTick++; dirty = true; if (visible) panels.forEach(resize); };
 
   window.TabCompare = M;
 })();

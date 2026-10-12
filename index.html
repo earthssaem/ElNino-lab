@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>엘니뇨·라니냐 탐구실</title>
 <meta name="description" content="무역풍 세기에 따른 적도 태평양의 변화, 평상시·엘니뇨·라니냐 비교, 남방진동을 모식도로 탐구하는 웹앱">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='1' y='1' width='38' height='38' rx='10' fill='%230b6d77'/%3E%3Cg fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 15H18l3-3M18 15l3 3' stroke-width='2.2'/%3E%3Cpath d='M5 24C10 20 15 20 20 23S30 27 35 22' stroke-width='2.4'/%3E%3Cpath d='M5 30C12 28 22 29 35 26' stroke-width='1.6' opacity='.6'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
@@ -104,7 +105,7 @@
           <div class="ro-row">
             <span class="ro-label">용승</span>
             <span class="ro-cell ro-none">–</span>
-            <span class="ro-cell"><span class="ro-meter" id="ro-up" aria-label="용승 세기"><i></i><i></i><i></i><i></i><i></i></span></span>
+            <span class="ro-cell"><span class="ro-meter" id="ro-up" role="img" aria-label="용승 세기"><i></i><i></i><i></i><i></i><i></i></span></span>
           </div>
           <div class="ro-tiles">
             <div class="tile">
@@ -237,7 +238,7 @@
         </div>
         <div class="card chart-card">
           <h2>시간에 따른 변화 <span class="tag">모식 그래프</span></h2>
-          <div class="chart-scroll"><svg id="so-chart" viewBox="0 0 640 314" role="img" aria-label="동태평양 수온 편차와 남방진동 지수의 모식 그래프"></svg></div>
+          <div class="chart-scroll"><svg id="so-chart" viewBox="0 0 640 314" tabindex="0" role="slider" aria-label="동태평양 수온 편차와 남방진동 지수의 모식 그래프에서 시기 고르기"></svg></div>
           <p class="footnote">그래프를 누르면 그 시기로 이동합니다. 실제 관측 자료가 아니라 두 값이 반대로 움직이는 관계를 보여 주는 모식 그래프입니다.</p>
         </div>
       </div>
