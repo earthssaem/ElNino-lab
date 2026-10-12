@@ -89,6 +89,8 @@
   function resize() {
     var w = Math.round(stage.clientWidth);
     if (!w) return;
+    // 그래프가 가로로 넘치면 손가락으로 가로 스크롤할 수 있게 한다 (아니면 CSS의 pan-y: 끌어서 시기 이동)
+    $('so-chart').style.touchAction = chartScrolls() ? 'pan-x pan-y' : '';
     var h = Math.round(w < 600 ? w * 1.12 : clamp(w * 0.5, 340, 600));
     if (w === W && h === H) return;
     W = w; H = h;
@@ -101,6 +103,7 @@
 
   /* ── 평면 지도(등장방형) 한 장을 만들어 원근으로 펼친다 ── */
   var PX = 4; // 1° 당 픽셀
+  var row = null, band = null; // 재생 중 매 프레임 새로 만들지 않도록 재사용
   function buildFlat(sNow) {
     var t = D.theme();
     var mw = (LON1 - LON0) * PX, mh = (LAT1 - LAT0) * PX;
@@ -111,8 +114,10 @@
     f.fillRect(0, 0, mw, mh);
 
     // 적도 부근 표층 수온 띠
-    var row = document.createElement('canvas');
-    row.width = mw; row.height = 1;
+    if (!row) {
+      row = document.createElement('canvas'); row.width = mw; row.height = 1;
+      band = document.createElement('canvas'); band.width = mw; band.height = mh;
+    }
     var rc = row.getContext('2d'), img = rc.createImageData(mw, 1), rgb = [0, 0, 0];
     for (var i = 0; i < mw; i++) {
       var lon = clamp(LON0 + (i + 0.5) / PX, E.LON_W, E.LON_E);
@@ -120,9 +125,9 @@
       img.data[i * 4] = rgb[0]; img.data[i * 4 + 1] = rgb[1]; img.data[i * 4 + 2] = rgb[2]; img.data[i * 4 + 3] = 255;
     }
     rc.putImageData(img, 0, 0);
-    var band = document.createElement('canvas');
-    band.width = mw; band.height = mh;
     var bc = band.getContext('2d');
+    bc.globalCompositeOperation = 'source-over';
+    bc.clearRect(0, 0, mw, mh);
     bc.imageSmoothingEnabled = true;
     bc.drawImage(row, 0, 0, mw, 1, 0, 0, mw, mh);
     bc.globalCompositeOperation = 'destination-in';
@@ -238,15 +243,13 @@
     lonLabel();
     var fs = clamp(12 * proj.u + 3, 11, 15);
 
-    // 대륙 이름 (적도 뒤쪽)
-    var asia = proj.p(106, 29);
-    D.text(ctx, '아시아', asia[0], asia[1], { size: fs - 1, weight: 700, color: t.ink2 });
-
     // 워커 순환 (적도를 따라 세운 연직면)
     var P = proj;
     D.drawWalker(ctx, function (lon, a) { return P.p(lon, 0, a * P.loopA); }, s, time, { u: P.u * 1.25, motion: motion });
 
-    // 적도 앞쪽(남반구) 요소
+    // 대륙 이름 (엘니뇨 때 서쪽 순환·해에 가리지 않도록 순환 뒤에 그린다)
+    var asia = proj.p(106, 29);
+    D.text(ctx, '아시아', asia[0], asia[1], { size: fs - 1, weight: 700, color: t.ink2 });
     var au = proj.p(134, -25);
     D.text(ctx, '오스트레일리아', au[0], au[1], { size: fs - 1, weight: 700, color: t.ink2 });
     var sa = proj.p(290, -22);
@@ -262,7 +265,7 @@
         var warm = q[1] > 0;
         var txt = narrow ? (warm ? '수온 ▲' : '수온 ▼') : (warm ? '평상시보다 따뜻' : '평상시보다 차가움');
         D.pill(ctx, txt, p[0], p[1], {
-          size: fs - 2.5, bg: warm ? t.nino : t.nina, fg: '#fff'
+          size: fs - 2.5, bg: warm ? t.nino : t.nina, fg: t.onPhase
         });
       });
     }
@@ -402,21 +405,44 @@
     chart.label = el('text', { x: 0, y: CH.bot[1] + 36, 'font-size': 11.5, 'font-weight': 700, 'text-anchor': 'middle', fill: 'var(--ink)' }, chart.head);
     chart.data = { nino: nino, soi: soi };
 
-    var dragging = false;
+    svg.setAttribute('aria-valuemin', 0);
+    svg.setAttribute('aria-valuemax', E.SERIES_YEARS);
+    var dragging = false, tap = false;
     function seek(e) {
       var r = svg.getBoundingClientRect();
       var x = (e.clientX - r.left) / r.width * 640;
-      tYears = clamp((x - CH.x0) / (CH.x1 - CH.x0) * E.SERIES_YEARS, 0, E.SERIES_YEARS);
-      target = null;
-      s = E.seriesState(tYears);
-      pressButtons(null);
-      update();
+      goTo((x - CH.x0) / (CH.x1 - CH.x0) * E.SERIES_YEARS);
     }
-    svg.addEventListener('pointerdown', function (e) { dragging = true; setPlaying(false); seek(e); if (svg.setPointerCapture) svg.setPointerCapture(e.pointerId); });
+    svg.addEventListener('pointerdown', function (e) {
+      // 그래프가 가로로 넘칠 때(휴대폰) 손가락으로 끌면 스크롤하고, 짧게 누르면(click) 이동한다
+      tap = e.pointerType === 'touch' && chartScrolls();
+      if (tap) return;
+      dragging = true; setPlaying(false); seek(e);
+      if (svg.setPointerCapture) svg.setPointerCapture(e.pointerId);
+    });
     svg.addEventListener('pointermove', function (e) { if (dragging) seek(e); });
     svg.addEventListener('pointerup', function () { dragging = false; });
     svg.addEventListener('pointercancel', function () { dragging = false; });
+    svg.addEventListener('click', function (e) { if (tap) { setPlaying(false); seek(e); } });
+    // 키보드: ←/→ 한 달, PageUp/PageDown 1년, Home/End 처음·끝
+    svg.addEventListener('keydown', function (e) {
+      var m = Math.round(tYears * 12), n = E.SERIES_YEARS * 12;
+      var k = { ArrowRight: m + 1, ArrowUp: m + 1, ArrowLeft: m - 1, ArrowDown: m - 1, PageUp: m + 12, PageDown: m - 12, Home: 0, End: n }[e.key];
+      if (k == null) return;
+      e.preventDefault();
+      setPlaying(false);
+      goTo(k / 12);
+    });
     updateHead();
+  }
+  function chartScrolls() { var sc = $('so-chart').parentNode; return sc.scrollWidth > sc.clientWidth + 1; }
+  function goTo(t) {
+    tYears = clamp(t, 0, E.SERIES_YEARS);
+    target = null;
+    s = E.seriesState(tYears);
+    pressButtons(null);
+    updateHead();
+    update();
   }
   function updateHead() {
     var i = clamp(Math.round(tYears * 12), 0, chart.data.nino.length - 1);
@@ -424,10 +450,14 @@
     chart.head.setAttribute('transform', 'translate(' + x.toFixed(1) + ' 0)');
     chart.dotTop.setAttribute('cy', cyTop(chart.data.nino[i][1]).toFixed(1));
     chart.dotBot.setAttribute('cy', cyBot(chart.data.soi[i][1]).toFixed(1));
-    var yr = Math.floor(tYears), mo = Math.floor((tYears - yr) * 12) + 1;
+    var mi = Math.floor(tYears * 12 + 1e-6), yr = Math.floor(mi / 12), mo = mi % 12 + 1; // 1e-6: k/12 의 부동소수 오차
     if (yr >= E.SERIES_YEARS) { yr = E.SERIES_YEARS; mo = 0; }
     chart.label.textContent = mo ? (yr + '년 ' + mo + '월') : (yr + '년');
     chart.label.setAttribute('x', x < 90 ? 30 : x > 590 ? -30 : 0);
+    var ph = E.phase(E.seriesState(tYears));
+    var svg = $('so-chart');
+    svg.setAttribute('aria-valuenow', tYears.toFixed(2));
+    svg.setAttribute('aria-valuetext', chart.label.textContent + ', ' + (ph === 'nino' ? '엘니뇨' : ph === 'nina' ? '라니냐' : '평상시'));
   }
 
   function update() {

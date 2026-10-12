@@ -58,7 +58,7 @@
       walker: v('--walker'), walkerEdge: v('--walker-edge'), surfWind: v('--surface-wind'),
       cloud: v('--cloud'), cloudShade: v('--cloud-shade'), rain: v('--rain'), sun: v('--sun'),
       mapOcean: v('--map-ocean'), mapLand: v('--map-land'), mapEdge: v('--map-edge'), mapGrid: v('--map-grid'),
-      nino: v('--nino'), nina: v('--nina'), normal: v('--normal'), accent: v('--accent'),
+      nino: v('--nino'), nina: v('--nina'), normal: v('--normal'), accent: v('--accent'), onPhase: v('--on-phase'),
       halo: v('--canvas-halo'), dark: v('--is-dark') === '1'
     };
     return theme;
