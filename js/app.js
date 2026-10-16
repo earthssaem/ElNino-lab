@@ -48,6 +48,12 @@
   TABS.forEach(function (t, i) { if (t.key === want) first = i; });
   TABS.forEach(function (t, i) { if (i !== first) t.mod.hide(); });
   select(first);
+  // 제목을 누르면 처음 화면으로: ① 무역풍 실험 탭 · 맨 위 (각 탭의 슬라이더·보기 설정·③ 그래프 위치는 그대로 둠)
+  function goHome() {
+    if (active !== 0) select(0);
+    window.scrollTo(0, 0); document.body.scrollTop = 0;   // 좁은 화면에서 스크롤한 경우 맨 위로
+  }
+  document.getElementById('homeLink').addEventListener('click', function (e) { e.preventDefault(); goHome(); });
   window.addEventListener('hashchange', function () {
     var h = (location.hash || '').replace('#', '');
     TABS.forEach(function (t, i) { if (t.key === h && i !== active) select(i); });
