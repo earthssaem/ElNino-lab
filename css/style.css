@@ -175,6 +175,11 @@ footer .hub:hover { color: var(--ink); text-decoration-color: currentColor; }
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark { width: 42px; height: 42px; flex: none; }
+/* 제목 부분(로고·제목·부제)을 누르면 처음 화면(① 무역풍 실험)으로 */
+a.brand { color: inherit; text-decoration: none; border-radius: 16px; margin: -4px -8px; padding: 4px 8px; -webkit-tap-highlight-color: transparent; }
+a.brand .brand-mark { transition: transform .15s; }
+@media (hover: hover) { a.brand:hover h1 { color: var(--accent); } a.brand:hover .brand-mark { transform: translateY(-1px); } }   /* 터치 화면에서는 누른 뒤 색이 남지 않게 */
+a.brand:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .brand h1 {
   margin: 0;
   font-family: var(--font-display);
