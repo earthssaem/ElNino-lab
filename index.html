@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<!-- 새로고침 때 ① 탭이 잠깐 보였다가 바뀌지 않도록, 그리기 전에 열 탭(주소의 #compare·#so, 주소가 비었으면 지난번 탭)을 html[data-tab] 으로 표시 (패널은 css, 탭 버튼은 본문 끝 스크립트, 해제는 app.js 의 select) -->
+<script>(function () { var h = location.hash.slice(1); if (!h) { try { h = localStorage.getItem('enso-lab-tab') || ''; } catch (e) { h = ''; } } if (h === 'compare' || h === 'so') document.documentElement.setAttribute('data-tab', h); })();</script>
 </head>
 <body>
 <div class="app">
@@ -244,6 +246,11 @@
       </div>
     </section>
   </main>
+  <script>/* 열 탭의 버튼을 처음부터 선택된 모양으로 (머리 스크립트 참고) */
+  (function () { var id = document.documentElement.getAttribute('data-tab'), on = id && document.getElementById('tabbtn-' + id); if (!on) return;
+    var bar = on.parentNode;
+    [].forEach.call(bar.querySelectorAll('[role="tab"]'), function (b) { b.setAttribute('aria-selected', b === on); b.tabIndex = b === on ? 0 : -1; });
+    if (bar.scrollWidth > bar.clientWidth) on.scrollIntoView({ inline: 'center', block: 'nearest' }); })(); // 탭 줄이 옆으로 밀리는 화면이면 그 탭이 보이게 미리 밀어 둠</script>
   <footer>© 2026 제작: 김연경(earthssaem@gmail.com) | <a class="hub" href="https://earthssaem-lab.vercel.app/" target="_blank" rel="noopener">연경쌤의 지구과학 실험실 둘러보기 →</a></footer>
 </div>
 

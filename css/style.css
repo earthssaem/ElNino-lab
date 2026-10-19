@@ -147,6 +147,10 @@ body {
   line-height: 1.5;
 }
 [hidden] { display: none !important; }
+/* 새로고침 때 열 탭(html[data-tab]: index.html 머리 스크립트가 붙이고 app.js 의 select 가 뗌)을 처음부터 보여 주고 ① 은 숨김.
+   위 [hidden] 의 !important 를 이기도록 구체성을 높임. 표시가 떼어진 뒤에는 원래대로 hidden 속성으로만 보임 */
+html[data-tab] #tab-wind { display: none !important; }
+html[data-tab="compare"] #tab-compare[hidden], html[data-tab="so"] #tab-so[hidden] { display: block !important; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
