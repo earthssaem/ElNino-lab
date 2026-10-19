@@ -43,7 +43,7 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 
 ### 탭 모듈과 화면 갱신
 
-- 각 탭 모듈은 `init(cfg)`, `show()`, `hide()`, `frame(dt)`, `redraw()`를 가진다. `app.js`가 탭 전환(`#wind` 등 주소, `localStorage` 기억)과 `requestAnimationFrame` 루프 하나를 맡고, 보이는 탭의 `frame(dt)`만 부른다.
+- 각 탭 모듈은 `init(cfg)`, `show()`, `hide()`, `frame(dt)`, `redraw()`를 가진다. `app.js`가 탭 전환(①은 주소 그대로, ②·③은 `#compare`·`#so` 주소, `localStorage` 기억, `index.html` 머리 스크립트의 `html[data-tab]`로 새로고침 깜빡임 방지)과 `requestAnimationFrame` 루프 하나를 맡고, 보이는 탭의 `frame(dt)`만 부른다.
 - `frame`은 '움직임'이 꺼져 있고 `dirty`가 아니면 아무것도 그리지 않는다. 상태나 옵션을 바꾸면 `dirty = true`로 표시해야 화면이 바뀐다.
 - 캔버스는 정적인 바탕(하늘·바다 단면·등온선·육지·축)을 `base` 캔버스에 캐시하고(키: `s`, 크기, 옵션, `themeTick`), 매 프레임 그 위에 움직이는 층(입자, 무역풍, 워커 순환, 물고기)만 그린다. 수온 단면 이미지는 `draw.js`의 `field()`가 따로 캐시한다.
 - 캔버스 크기는 CSS가 아니라 각 탭의 `resize()`가 컨테이너 폭으로 계산한다(`ResizeObserver`, `devicePixelRatio` 최대 2). ②는 가로 3단일 때 세 그림이 한 화면에 들어오도록 창 높이에 맞춘다.
