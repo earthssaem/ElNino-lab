@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>엘니뇨 실측자료 탐구실</title>
+<meta name="description" content="1997~1998, 2015~2016, 2023~2024년 엘니뇨 때 태평양의 해수면 온도, 수심별 수온, 무역풍, 강수량을 실제 관측·재분석 자료로 탐구하는 웹앱 (Pacific ENSO Observatory)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='1' y='1' width='38' height='38' rx='9' fill='%231f5d99'/%3E%3Cpath d='M6 14h28M6 20h28' stroke='%23fff' stroke-width='1.4' opacity='.55'/%3E%3Cpath d='M6 30C12 22 18 18 24 17s8 0 10 1' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/obs.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <a class="brand" id="homeLink" href="./" title="처음 화면으로" aria-label="엘니뇨 실측자료 탐구실 — 처음 화면으로">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="1" y="1" width="38" height="38" rx="9" style="fill:var(--accent)"/>
+        <path d="M6 14h28M6 20h28" stroke="#fff" stroke-width="1.4" opacity=".55"/>
+        <path d="M6 30C12 22 18 18 24 17s8 0 10 1" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-text">
+        <span class="brand-ko">엘니뇨 실측자료 탐구실</span>
+        <span class="brand-en">Pacific ENSO Observatory</span>
+      </span>
+    </a>
+
+    <div class="cases" role="radiogroup" aria-label="엘니뇨 사례" id="caseGroup"></div>
+
+    <button type="button" class="btn btn-compare" id="compareBtn" aria-pressed="false">시기 비교</button>
+  </header>
+
+  <!-- 시간 조작 (기본 화면) -->
+  <section class="timebar" id="timebar" aria-label="관측 시기">
+    <div class="now">
+      <div class="now-month" id="nowMonth" aria-live="polite">—</div>
+      <div class="now-sub" id="nowSub"></div>
+    </div>
+    <div class="time-ctrl">
+      <button type="button" class="btn icon" id="prevBtn" aria-label="이전 달" title="이전 달">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" class="btn icon play" id="playBtn" aria-label="자동 재생" title="자동 재생">
+        <svg class="i-play" viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 4.5v11l9-5.5z" fill="currentColor"/></svg>
+        <svg class="i-pause" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5h3v11H6zM11 4.5h3v11h-3z" fill="currentColor"/></svg>
+      </button>
+      <button type="button" class="btn icon" id="nextBtn" aria-label="다음 달" title="다음 달">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="slider-wrap">
+        <input type="range" id="timeSlider" min="0" max="0" value="0" aria-label="관측 연월">
+        <div class="slider-years" id="sliderYears" aria-hidden="true"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 시기 비교 선택 -->
+  <section class="comparebar" id="comparebar" hidden aria-label="비교할 두 시기">
+    <div class="pick"><span class="pick-tag">A</span><label class="sr" for="pickA">시점 A</label><select id="pickA"></select></div>
+    <div class="pick"><span class="pick-tag">B</span><label class="sr" for="pickB">시점 B</label><select id="pickB"></select></div>
+    <p class="pick-note">두 시점은 같은 변수·같은 색 범위·같은 수심 축으로 그립니다.</p>
+  </section>
+
+  <main id="main">
+    <!-- 지도 -->
+    <section class="panel" aria-labelledby="mapTitle">
+      <div class="panel-head">
+        <h2 id="mapTitle">태평양 지도 <span class="h-sub" id="mapSub"></span></h2>
+        <div class="tools">
+          <div class="seg" role="radiogroup" aria-label="지도 자료">
+            <button type="button" role="radio" data-layer="sst" aria-checked="true">해수면 온도</button>
+            <button type="button" role="radio" data-layer="precip" aria-checked="false">강수량</button>
+          </div>
+          <div class="seg" role="radiogroup" aria-label="지도 표시 방식">
+            <button type="button" role="radio" data-mapmode="value" aria-checked="true">실제 값</button>
+            <button type="button" role="radio" data-mapmode="anom" aria-checked="false">평년 편차</button>
+          </div>
+          <label class="check"><input type="checkbox" id="arrowChk" checked> 바람 화살표</label>
+        </div>
+      </div>
+      <div class="views" id="mapViews"></div>
+      <div class="legend-row">
+        <div class="legend" id="mapLegend" role="img"></div>
+        <div class="arrow-legend" id="arrowLegend" role="img"></div>
+        <p class="legend-note" id="mapNote"></p>
+      </div>
+      <div class="readout" id="mapReadout" aria-live="polite">지도를 누르면 그 위치의 관측값을 보여 줍니다. 적도 부근을 누르면 아래 단면에도 같은 경도가 표시됩니다.</div>
+    </section>
+
+    <!-- 수온 단면 -->
+    <section class="panel" aria-labelledby="secTitle">
+      <div class="panel-head">
+        <h2 id="secTitle">적도 태평양 수온 단면 <span class="h-sub">2°S~2°N 평균 · NCEP GODAS</span></h2>
+        <div class="tools">
+          <div class="seg" role="radiogroup" aria-label="단면 표시 방식">
+            <button type="button" role="radio" data-secmode="value" aria-checked="true">실제 수온</button>
+            <button type="button" role="radio" data-secmode="anom" aria-checked="false">수온 편차</button>
+          </div>
+          <label class="check"><input type="checkbox" id="isoChk" checked> 20 ℃ 등온선</label>
+          <details class="help">
+            <summary aria-label="20 ℃ 등온선 도움말">?</summary>
+            <div class="help-body">
+              <p><b>20 ℃ 등온선</b>은 적도 태평양에서 <b>수온약층 깊이를 나타내는 대표 지표</b>로 많이 씁니다.
+                수온약층은 깊이에 따라 수온이 급하게 낮아지는 층 전체를 말하므로, 20 ℃ 등온선과 똑같은 것은 아닙니다.</p>
+              <p>실선은 그 달, 점선은 같은 달의 1991~2020년 평년 수온으로 계산한 20 ℃ 등온선입니다.
+                위아래 두 자료 층 사이를 선형 보간해 깊이를 구합니다.</p>
+              <p>이 단면은 적도 부근(2°S~2°N)을 평균한 것으로, 페루 연안의 수직 단면이 아닙니다.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div class="views" id="secViews"></div>
+      <div class="legend-row">
+        <div class="legend" id="secLegend" role="img"></div>
+        <div class="iso-legend" id="isoLegend">
+          <span><i class="iso-solid"></i>20 ℃ 등온선 (그 달)</span>
+          <span><i class="iso-dash"></i>같은 달 평년</span>
+        </div>
+        <p class="legend-note">색은 자료 격자(경도 1°, 자료 층) 사이를 선형 보간해 칠했습니다. 회색: 자료 없음(육지 등)</p>
+      </div>
+      <div class="readout" id="secReadout" aria-live="polite">단면을 누르면 그 경도의 20 ℃ 등온선 깊이를 잽니다. 단면을 고른 뒤 ←/→ 키로 1°씩 옮길 수 있습니다.</div>
+    </section>
+
+    <!-- 시계열 -->
+    <details class="panel fold" id="seriesFold">
+      <summary><h2>시계열 그래프 <span class="h-sub">무역풍과 Niño 3.4 수온 편차</span></h2></summary>
+      <div class="fold-body">
+        <div class="tools tools-left">
+          <label class="sel">무역풍 해역
+            <select id="regionSel"></select>
+          </label>
+          <div class="seg" role="radiogroup" aria-label="바람 표시 방식">
+            <button type="button" role="radio" data-windmode="value" aria-checked="true">실제 값</button>
+            <button type="button" role="radio" data-windmode="anom" aria-checked="false">평년 편차</button>
+          </div>
+        </div>
+        <div class="series" id="seriesBox"></div>
+        <p class="fold-note">무역풍 값은 NCEP/NCAR Reanalysis 1의 10 m 동서 바람(u)을 선택한 해역 격자에서 위도 가중 평균한 값으로,
+          <b>이 웹앱이 직접 계산한 지역 평균</b>입니다(공식 기관 지수가 아님). 해역의 경도 범위는 NOAA CPC 850 hPa 무역풍 지수와 같습니다.
+          u는 동쪽으로 부는 바람(서풍)이 양수, 서쪽으로 부는 바람(동풍·무역풍)이 음수이며 풍속의 크기가 아닙니다. 그래프를 누르면 그 달로 이동합니다.</p>
+      </div>
+    </details>
+
+    <!-- 자료 출처 -->
+    <details class="panel fold" id="sourceFold">
+      <summary><h2>자료 출처와 한계</h2></summary>
+      <div class="fold-body sources" id="sources"></div>
+    </details>
+  </main>
+
+  <footer>
+    <a href="../">← 개념 시뮬레이터 (엘니뇨·라니냐 탐구실)</a><br>
+    © 2026 제작: 김연경(earthssaem@gmail.com) | <a class="hub" href="https://earthssaem-lab.vercel.app/" target="_blank" rel="noopener">연경쌤의 지구과학 실험실 둘러보기 →</a>
+  </footer>
+</div>
+
+<div class="loading" id="loading" role="status">관측 자료를 읽는 중…</div>
+<noscript><p class="noscript">이 웹앱은 JavaScript가 켜져 있어야 동작합니다.</p></noscript>
+
+<script src="../js/land.js"></script>
+<script src="js/data.js"></script>
+<script src="js/colors.js"></script>
+<script src="js/map.js"></script>
+<script src="js/section.js"></script>
+<script src="js/series.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

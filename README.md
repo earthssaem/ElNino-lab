@@ -1,4 +1,47 @@
-# 엘니뇨·라니냐 탐구실
+# 엘니뇨·라니냐 탐구실 · 엘니뇨 실측자료 탐구실
+
+이 저장소에는 웹앱 두 개가 있습니다.
+
+| 웹앱 | 주소 | 내용 |
+| --- | --- | --- |
+| 엘니뇨·라니냐 탐구실 (개념 시뮬레이터) | `/` | 지구과학Ⅰ 「대기와 해양의 상호 작용」 수업용 모식도·조작 위주 웹앱. 수치는 교육용 모식값 |
+| 엘니뇨 실측자료 탐구실 (Pacific ENSO Observatory) | `/observatory/` | 통합과학2 수업용. 1997~1998, 2015~2016, 2023~2024년 엘니뇨 때의 **실제 관측·재분석 자료**로 해수면 온도, 적도 수온 단면, 무역풍, 강수량을 탐구 |
+
+## 엘니뇨 실측자료 탐구실 (`observatory/`)
+
+- 사례를 고르고 시간 슬라이더(월 단위, 자동 재생)를 움직이면 지도·바람 화살표·수온 단면·20 ℃ 등온선·관측값·시계열이 모두 같은 연·월 자료로 바뀝니다.
+- **지도**(30°S~30°N, 100°E~70°W 고정): 해수면 온도 또는 강수량, 실제 값/평년 편차 전환, 10 m 바람 화살표. 누르면 그 격자의 값을 보여 줍니다.
+- **수온 단면**(2°S~2°N 평균, 0~500 m): 실제 수온/수온 편차, 20 ℃ 등온선(실선 그 달, 점선 같은 달 평년). 누르면 그 경도의 등온선 깊이와 평년과의 차이를 잽니다.
+- **시기 비교**: 두 연·월을 같은 색 범위·같은 수심 축으로 나란히 봅니다(예: 2022년 12월 ↔ 2023년 12월).
+- **시계열**(접이식): Niño 3.4 수온 편차와 선택 해역의 10 m 동서 바람.
+- 자료는 `observatory/data/*.json`을 읽으므로 **웹 서버로 열어야** 합니다(파일을 바로 열면 자료를 읽지 못함). Vercel·GitHub Pages에 올리면 그대로 동작합니다.
+
+| 화면 요소 | 자료 | 해상도 | 받는 곳 |
+| --- | --- | --- | --- |
+| 해수면 온도, Niño 3.4 | NOAA ERSST v5 | 2°, 월 | www.ncei.noaa.gov |
+| 수온 단면, 20 ℃ 등온선 | NCEP GODAS 잠재 수온 | 경도 1° × 위도 1/3°, 40층 | downloads.psl.noaa.gov |
+| 바람 화살표, 무역풍 | NCEP/NCAR Reanalysis 1 10 m u·v | T62(약 1.9°) | downloads.psl.noaa.gov |
+| 강수량 | GPCP Monthly v2.3 | 2.5° | NOAA CDR(AWS 공식 사본) |
+
+평년은 모두 1991~2020년 같은 달 평균을 원자료에서 직접 계산했습니다. 자료 만들기·검증 방법은 [`pipeline/README.md`](pipeline/README.md), 검증 결과는 [`pipeline/validation/REPORT.md`](pipeline/validation/REPORT.md)를 보세요.
+검증 요약: Niño 3.4 편차가 NOAA CPC 공식 값과 408개월 모두 0.03 °C 이내, 2023년 12월 적도 수온 편차 단면이 CPC 월간 해양 브리핑 그림과 같은 모습, 같은 R1 자료로 계산한 850 hPa 무역풍 지수가 CPC 공식 지수와 상관 0.998 이상.
+
+### 자료 다시 만들기
+
+```bash
+cd pipeline
+pip install -r requirements.txt
+./run_all.sh     # 내려받기 → 가공 → observatory/data/*.json → 검증 보고서
+```
+
+### Vercel 배포
+
+빌드 과정이 없는 정적 사이트입니다. Vercel에서 이 저장소를 가져와(Framework Preset: Other, Build Command 비움, Output Directory 비움 = 저장소 루트) 배포하면
+`/`는 개념 시뮬레이터, `/observatory/`는 실측자료 탐구실로 열립니다. JSON 자료는 Vercel이 자동으로 압축해 보냅니다(사례 하나 약 1.2 MB).
+
+---
+
+# 엘니뇨·라니냐 탐구실 (개념 시뮬레이터)
 
 지구과학Ⅰ 「대기와 해양의 상호 작용」 단원(엘니뇨와 라니냐, 남방진동) 수업용 웹앱입니다.
 글은 최소로 줄이고 모식도와 조작 위주로 만들었습니다.
@@ -44,7 +87,18 @@ js/tab-wind.js      ① 무역풍 실험
 js/tab-compare.js   ② 세 상태 비교
 js/tab-so.js        ③ 남방진동
 js/app.js           탭 전환, 화면 갱신
-js/land.js          태평양 해안선 (Natural Earth 1:50m, 퍼블릭 도메인)
+js/land.js          태평양 해안선 (Natural Earth 1:50m, 퍼블릭 도메인) — 실측자료 탐구실 지도도 이 파일을 씀
+
+observatory/index.html        실측자료 탐구실 화면
+observatory/css/obs.css       디자인(밝은 관측 대시보드, 어두운 테마 대응)
+observatory/js/data.js        자료 읽기, 편차·20 ℃ 등온선 계산, 표기
+observatory/js/colors.js      고정 색 범위(실제 값 순차형, 편차 발산형)
+observatory/js/map.js         태평양 지도(격자 칸 그대로, 바람 화살표)
+observatory/js/section.js     적도 수온 단면
+observatory/js/series.js      시계열 그래프(SVG)
+observatory/js/app.js         상태·조작·시기 비교
+observatory/data/             파이프라인이 만든 자료(JSON)
+pipeline/                     공식 원자료 내려받기·가공·검증 Python 코드
 ```
 
 수치를 고치려면 `js/model.js`의 표(예: `ANOM_NINO`, `ANOM_NINA`, `iso20`의 서·동 깊이)를 바꾸면 세 탭에 모두 반영됩니다.

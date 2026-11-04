@@ -16,6 +16,17 @@ python3 validate.py     # 1단계 검증: validation/REPORT.md와 그림
 ./run_all.sh            # 원자료는 raw/, 중간 자료는 work/ (둘 다 저장소에 넣지 않음)
 ```
 
+## 웹앱용 자료 (`build_web.py` → `observatory/data/`)
+
+| 파일 | 내용 |
+| --- | --- |
+| `meta.json` | 사례·월 목록, 격자 좌표, 정수 배율(scale), 해역 정의 |
+| `clim.json` | 1991~2020 월별 평년값(해수면 온도, 강수, u, v, 단면) |
+| `case-1997.json` 등 | 사례 기간(앞뒤 해 포함) 월별 실제 값 |
+| `series.json` | 1991~2024 Niño 3.4(값·편차), 무역풍 지역 평균(값·편차) |
+
+값은 `정수 × scale`(해수면 온도·단면 0.01 °C, 강수 0.1 mm/월, 바람 0.01 m/s)이고 결측은 `null`이다.
+
 ## 처리 원칙
 
 - 기간 1991-01 ~ 2024-12, 평년 1991~2020년 같은 달 평균(`common.climatology`). 결측은 채우지 않고,
