@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-저장소에 웹앱이 두 개 있다. 루트(`/`)는 아래에 설명한 개념 시뮬레이터, `observatory/`는 실제 관측·재분석 자료를 보여 주는 「엘니뇨 실측자료 탐구실」이다(아래 「실측자료 탐구실」 절).
+저장소에 웹앱이 두 개 있다. 루트(`/`)는 아래에 설명한 개념 시뮬레이터, `observatory/`는 실제 관측·재분석 자료를 보여 주는 「엘니뇨·라니냐 실측자료 탐구실」이다(아래 「실측자료 탐구실」 절).
 
 지구과학Ⅰ 「대기와 해양의 상호 작용」(엘니뇨·라니냐, 남방진동) 수업용 정적 웹앱이다. 빌드 도구, 패키지, 테스트 코드가 없고 `index.html`을 브라우저로 열면 바로 동작한다. 글은 최소로 하고 모식도와 조작 위주로 만든다. 용어는 교과서 용어(수온 약층, 혼합층, 용승, 엘니뇨 감시 구역, 남방진동 지수, 워커 순환)를 따른다.
 
@@ -64,7 +64,9 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 
 ## 실측자료 탐구실 (`observatory/`, `pipeline/`)
 
-- 통합과학2용. 화면의 모든 값은 `pipeline/`이 공식 원자료(ERSST v5, GODAS, NCEP/NCAR Reanalysis 1 10 m 바람, GPCP v2.3)로 만든 `observatory/data/*.json`이다. **임의로 만든 값·채운 결측을 절대 넣지 않는다.** 자료가 없으면 '자료 없음'으로 표시한다.
+- 통합과학2용. 사례는 `pipeline/common.py`의 `CASES`(엘니뇨 3개, 라니냐 2개, `phase`·탐색 기간·`focus` 달)에서 정한다. 월별 지도·단면 자료는 연도별 파일 `observatory/data/year-YYYY.json`이며(사례 기간이 겹쳐도 한 번만 저장), `OBS.ensure(months)`로 읽는다. 사례를 고르면 그 기간의 연도 파일을 모두 읽는다.
+- 엘니뇨·라니냐·중립 표시는 NOAA CPC 공식 판정(RONI 표의 빨강·파랑, `enso_record.py`가 읽음)을 그대로 쓴다. 월별 Niño 3.4가 ±0.5 °C를 넘었다는 이유만으로 판정하지 않는다. 참고로 ONI v5 판정도 `meta.cases[].official_oni5`에 있다.
+- 화면의 모든 값은 `pipeline/`이 공식 원자료(ERSST v5, GODAS, NCEP/NCAR Reanalysis 1 10 m 바람, GPCP v2.3)로 만든 `observatory/data/*.json`이다. **임의로 만든 값·채운 결측을 절대 넣지 않는다.** 자료가 없으면 '자료 없음'으로 표시한다.
 - 무역풍은 1991~2024 전 기간 NCEP/NCAR R1 하나로 가공한다. 다른 재분석(ERA5 등)과 시기별로 섞지 않는다. R1을 못 쓰게 되면 몰래 바꾸지 말고 사용자에게 Copernicus CDS 사용을 제안한다.
 - 평년은 1991~2020 같은 달 평균을 직접 계산(30년 중 24년 이상 있는 칸만). 편차는 웹앱이 '실제 값 − 평년값'으로 계산한다.
 - 자료 다시 만들기: `cd pipeline && ./run_all.sh` (원자료는 `pipeline/raw/`, 중간 자료는 `pipeline/work/`, 둘 다 저장소에 넣지 않음). 검증 결과 `pipeline/validation/REPORT.md`도 함께 갱신해 커밋한다.

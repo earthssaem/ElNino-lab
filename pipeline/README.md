@@ -1,4 +1,4 @@
-# 자료 가공 파이프라인 (엘니뇨 실측자료 탐구실)
+# 자료 가공 파이프라인 (엘니뇨·라니냐 실측자료 탐구실)
 
 공식 기관의 원자료를 내려받아 태평양 해역만 잘라 내고, 1991~2020년 월별 평년값과 편차를 직접 계산한다.
 임의로 만든 값이나 결측을 채운 값은 쓰지 않는다.
@@ -7,6 +7,7 @@
 | --- | --- | --- | --- | --- |
 | `ersst.py` | NOAA ERSST v5 해수면 온도, 2° | www.ncei.noaa.gov | °C | 관측 재구성 분석 |
 | `godas.py` | NCEP GODAS 잠재 수온, 경도 1° × 위도 1/3°, 40층 | downloads.psl.noaa.gov | K → °C | 해양 재분석 |
+| `enso_record.py` | NOAA CPC 공식 ENSO 판정: RONI 표(공식 감시 지수, ERSST v6)와 ONI v5 표의 계절별 빨강·파랑 | www.cpc.ncep.noaa.gov | — | 공식 기관 판정 기록 |
 | `ncep_wind.py` | NCEP/NCAR Reanalysis 1 월평균 10 m 바람 u·v, T62 가우스 격자(1.875° × 약 1.9°) | downloads.psl.noaa.gov | m/s | 대기 재분석 |
 | `gpcp.py` | GPCP Monthly v2.3(v02r03) 강수, 2.5° | NOAA NODD AWS 사본(원본과 같은 파일) | mm/day → mm/월 | 위성·우량계 분석 |
 
@@ -20,10 +21,10 @@ python3 validate.py     # 1단계 검증: validation/REPORT.md와 그림
 
 | 파일 | 내용 |
 | --- | --- |
-| `meta.json` | 사례·월 목록, 격자 좌표, 정수 배율(scale), 해역 정의 |
+| `meta.json` | 사례(현상·탐색 기간·NOAA 공식 발생 기간)·연도 목록, 격자 좌표, 정수 배율(scale), 해역 정의 |
 | `clim.json` | 1991~2020 월별 평년값(해수면 온도, 강수, u, v, 단면) |
-| `case-1997.json` 등 | 사례 기간(앞뒤 해 포함) 월별 실제 값 |
-| `series.json` | 1991~2024 Niño 3.4(값·편차), 무역풍 지역 평균(값·편차) |
+| `year-1996.json` 등 15개 | 사례 기간이 걸친 해의 월별 실제 값(사례가 겹쳐도 같은 해는 한 번만) |
+| `series.json` | 1991~2024 Niño 3.4(값·편차), 무역풍 지역 평균(값·편차), 월별 공식 ENSO 판정(RONI·ONI v5) |
 
 값은 `정수 × scale`(해수면 온도·단면 0.01 °C, 강수 0.1 mm/월, 바람 0.01 m/s)이고 결측은 `null`이다.
 

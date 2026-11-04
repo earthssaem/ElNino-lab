@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  var OBS = { meta: null, clim: null, series: null, cases: {}, months: [], monthCase: {} };
+  var OBS = { meta: null, clim: null, series: null, years: {} };
   var cache = {};
 
   function getJSON(url) {
@@ -23,24 +23,42 @@
   OBS.load = function () {
     return Promise.all([getJSON('data/meta.json'), getJSON('data/clim.json'), getJSON('data/series.json')]).then(function (r) {
       OBS.meta = r[0]; OBS.clim = r[1]; OBS.series = r[2];
-      OBS.meta.cases.forEach(function (c) {
-        c.months.forEach(function (m) { if (!OBS.monthCase[m]) { OBS.monthCase[m] = c.id; OBS.months.push(m); } });
-      });
-      OBS.months.sort();
     });
   };
 
-  OBS.loadCase = function (id) {
-    if (OBS.cases[id]) return Promise.resolve(OBS.cases[id]);
-    return getJSON('data/case-' + id + '.json').then(function (d) { OBS.cases[id] = d; return d; });
+  /* 월별 지도·단면 자료는 연도별 파일(year-YYYY.json). 사례끼리 기간이 겹쳐도 같은 파일을 쓴다. */
+  OBS.has = function (ym) { return OBS.meta.years.indexOf(parseInt(ym.slice(0, 4), 10)) >= 0; };
+  OBS.loadYear = function (y) {
+    if (OBS.years[y]) return Promise.resolve(OBS.years[y]);
+    return getJSON('data/year-' + y + '.json').then(function (d) { OBS.years[y] = d; return d; });
   };
+  OBS.ensure = function (months) {
+    var ys = {};
+    months.forEach(function (m) { if (m && OBS.has(m)) ys[m.slice(0, 4)] = true; });
+    return Promise.all(Object.keys(ys).map(function (y) { return OBS.loadYear(parseInt(y, 10)); }));
+  };
+  function monthData(ym) {
+    var d = OBS.years[parseInt(ym.slice(0, 4), 10)];
+    return d ? { d: d, i: parseInt(ym.slice(5, 7), 10) - 1 } : null;
+  }
 
-  /* 그 달 자료가 들어 있는 사례(다른 사례와 겹치지 않는다) */
-  OBS.caseOf = function (ym) { return OBS.monthCase[ym]; };
   OBS.caseInfo = function (id) {
     for (var i = 0; i < OBS.meta.cases.length; i++) if (OBS.meta.cases[i].id === id) return OBS.meta.cases[i];
     return null;
   };
+  /* 그 달을 포함하는 사례들(겹치는 기간은 둘 이상) */
+  OBS.casesWith = function (ym) {
+    return OBS.meta.cases.filter(function (c) { return c.months.indexOf(ym) >= 0; });
+  };
+
+  /* NOAA CPC 공식 판정(RONI 표의 빨강·파랑). 1 엘니뇨, −1 라니냐, 0 중립, null 자료 없음 */
+  OBS.ensoState = function (ym) {
+    var i = OBS.series.months.indexOf(ym);
+    if (i < 0) return null;
+    var v = OBS.series.enso.roni[i];
+    return v === null ? null : OBS.series.enso.roni_state[i];
+  };
+  OBS.ensoName = function (s) { return s === 1 ? '엘니뇨' : s === -1 ? '라니냐' : s === 0 ? '중립' : '자료 없음'; };
 
   var SC = { sst: 'sst', precip: 'precip', u: 'wind', v: 'wind', section: 'section' };
 
@@ -48,10 +66,9 @@
   OBS.value = function (v, ym) {
     var key = 'v|' + v + '|' + ym;
     if (cache[key]) return cache[key];
-    var c = OBS.cases[OBS.caseOf(ym)];
-    if (!c) return null;
-    var i = c.months.indexOf(ym);
-    return (cache[key] = decode(c[v][i], OBS.meta.scale[SC[v]]));
+    var md = monthData(ym);
+    if (!md) return null;
+    return (cache[key] = decode(md.d[v][md.i], OBS.meta.scale[SC[v]]));
   };
 
   /* 같은 달 평년값 */
@@ -78,9 +95,9 @@
     var key = 'n|' + ym;
     if (cache[key]) return cache[key];
     var g = OBS.meta.grids.section, out = new Int8Array(g.ocean_count);
-    var c = OBS.cases[OBS.caseOf(ym)];
-    if (c && c.section_count_diff) {
-      (c.section_count_diff[c.months.indexOf(ym)] || []).forEach(function (d) { out[d[0]] = d[1]; });
+    var md = monthData(ym);
+    if (md && md.d.section_count_diff) {
+      (md.d.section_count_diff[md.i] || []).forEach(function (d) { out[d[0]] = d[1]; });
     }
     return (cache[key] = out);
   };

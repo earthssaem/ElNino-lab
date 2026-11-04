@@ -413,6 +413,95 @@ def wind_check(lines):
     lines.append('')
 
 
+def enso_check(lines):
+    """5. 라니냐 사례 추가: 공식 ENSO 기록 대조, 필수 검증 시점, 웹 자료 왕복 일치."""
+    import json
+    en, e, w, g = C.load_work('enso'), C.load_work('ersst'), C.load_work('wind'), C.load_work('godas')
+    t = list(e['time'])
+    meta = json.load(open(os.path.join(C.OUT, 'meta.json'), encoding='utf-8'))
+    fm = lambda ym: '%s년 %d월' % (ym[:4], int(ym[5:]))
+    per = lambda lst: ', '.join('%s~%s' % (fm(x['start']), fm(x['end'])) for x in lst)
+    lines += ['## 5. 엘니뇨·라니냐 사례와 NOAA 공식 ENSO 기록', '',
+              '월별 상태 표시는 NOAA CPC가 공식 감시에 쓰는 RONI(ERSST v6) 표의 판정(빨강·파랑)을 그대로 읽은 것이다(`enso_record.py`). '
+              '참고로 기존 ONI(ERSST v5) 표의 판정도 함께 적는다. 월별 Niño 3.4 편차만으로 엘니뇨·라니냐를 정하지 않는다.', '',
+              '| 사례 | 공식 기간 (RONI) | 참고 ONI v5 | 자료 탐색 기간 |', '| --- | --- | --- | --- |']
+    for c in meta['cases']:
+        lines.append('| %s | %s | %s | %s~%s |' % (c['name'], per(c['official']), per(c['official_oni5']), fm(c['start']), fm(c['end'])))
+    nc = C.climatology(e['nino34'], t)
+    na = e['nino34'] - np.array([nc[int(m[5:7]) - 1] for m in t])
+    sec, depth, lon = g['section'], g['depth'], g['lon']
+    clim = C.climatology(sec, t)
+    pts = [140.5, 180.5, 220.5, 260.5]
+    jj = [int(np.argmin(np.abs(lon - p))) for p in pts]
+    name = {1: '엘니뇨', -1: '라니냐', 0: '중립'}
+    lines += ['', '### 필수 검증 시점', '',
+              '| 월 | 공식 판정 RONI (값) | ONI v5 | Niño 3.4 편차 (이 앱, ERSST v5) | 10 m u 편차 서/중앙/동 (m/s) | '
+              '20 ℃ 등온선 140°E·180°·140°W·100°W (m, 괄호 평년) | 기울기 140°E−100°W (m, 괄호 평년) |', '|---' * 7 + '|']
+    for ym in ['1997-12', '1999-12', '2022-12', '2023-12']:
+        i, m = t.index(ym), int(ym[5:7]) - 1
+        wa = []
+        for r in C.WIND_REGIONS:
+            x = w['idx_' + r['id']]
+            wa.append('%+.1f' % (x[i] - C.climatology(x, t)[m]))
+        cur, cl = iso_line(sec[i], depth), iso_line(clim[m], depth)
+        lines.append('| %s | %s (%+.1f) | %s | %+.2f °C | %s | %s | %.0f (%.0f) |' % (
+            ym, name[int(en['roni_state'][i])], en['roni_value'][i], name[int(en['oni5_state'][i])], na[i], ' / '.join(wa),
+            ', '.join('%.0f (%.0f)' % (cur[j], cl[j]) for j in jj), cur[jj[0]] - cur[jj[3]], cl[jj[0]] - cl[jj[3]]))
+    lines += ['', '- u 편차가 양수면 동풍(무역풍)이 평년보다 약함, 음수면 강함. 기울기가 클수록 서쪽이 동쪽보다 깊다.']
+
+    # 필수 검증 시점 그림: 해수면 온도 편차 지도 + 바람 편차, 수온 편차 단면 + 20 ℃ 등온선
+    months = ['1997-12', '1999-12', '2022-12', '2023-12']
+    es, la, lo = e['sst'], e['lat'], e['lon']
+    sc = C.climatology(es, t)
+    cu, cv = C.climatology(w['u'], t), C.climatology(w['v'], t)
+    lev = [-4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4]
+    cm = plt.get_cmap('RdBu_r', len(lev) - 1)
+    lev2 = [-5, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 5]
+    cm2 = plt.get_cmap('RdBu_r', len(lev2) - 1)
+    fig, axs = plt.subplots(len(months), 2, figsize=(14, 2.9 * len(months)), gridspec_kw={'width_ratios': [1.35, 1]})
+    for r, ym in enumerate(months):
+        i, m = t.index(ym), int(ym[5:7]) - 1
+        ax = axs[r, 0]
+        ax.set_facecolor('0.8')
+        ax.pcolormesh(lo, la, np.ma.masked_invalid(es[i] - sc[m]), cmap=cm, norm=BoundaryNorm(lev, cm.N), shading='nearest')
+        q = ax.quiver(w['lon'][::3], w['lat'][1::3], (w['u'][i] - cu[m])[1::3, ::3], (w['v'][i] - cv[m])[1::3, ::3], scale=60, width=0.0025)
+        ax.quiverkey(q, 0.93, 1.05, 3, '3 m/s anom', labelpos='E', fontproperties={'size': 7})
+        for ring in LAND:
+            ax.plot(ring[0::2], ring[1::2], color='0.4', lw=0.4)
+        ax.set_xlim(100, 290); ax.set_ylim(-30, 30); ax.set_aspect('equal')
+        ax.set_title('%s  ERSST v5 SST anomaly + R1 10 m wind anomaly (RONI: %s)' % (ym, ['La Nina', 'neutral', 'El Nino'][int(en['roni_state'][i]) + 1]), fontsize=8)
+        ax = axs[r, 1]
+        ax.set_facecolor('0.55')
+        ax.pcolormesh(lon, depth, np.ma.masked_invalid(sec[i] - clim[m]), cmap=cm2, norm=BoundaryNorm(lev2, cm2.N), shading='nearest')
+        ax.plot(lon, iso_line(sec[i], depth), 'k-', lw=1.6)
+        ax.plot(lon, iso_line(clim[m], depth), 'k--', lw=1.1)
+        ax.set_ylim(400, 0); ax.set_xlim(120, 285)
+        ax.set_xticks(range(120, 286, 30))
+        ax.set_xticklabels([lon_label(x) for x in range(120, 286, 30)], fontsize=7)
+        ax.set_title('%s  GODAS 2S-2N temp anomaly, 20°C: solid=month, dashed=clim' % ym, fontsize=8)
+    fig.tight_layout()
+    fig.savefig(os.path.join(VAL, 'key_months_nino_nina.png'), dpi=100)
+    plt.close(fig)
+    lines += ['', '`key_months_nino_nina.png` — 네 시점의 해수면 온도·바람 편차 지도와 적도 수온 편차 단면.', '']
+
+    # 웹 자료 왕복 확인: year-*.json 값 × scale 이 중간 자료와 반올림 범위 안에서 같은지
+    sc_ = meta['scale']
+    worst = 0.0
+    for y in meta['years']:
+        d = json.load(open(os.path.join(C.OUT, 'year-%d.json' % y), encoding='utf-8'))
+        for k, (src, key, s_) in {'sst': (e, 'sst', 'sst'), 'section': (g, 'section', 'section'), 'u': (w, 'u', 'wind')}.items():
+            for mi, ym in enumerate(d['months']):
+                a = np.array([np.nan if v is None else v for v in d[k][mi]], float) * sc_[s_]
+                b = src[key][t.index(ym)].ravel()
+                same_nan = np.array_equal(np.isnan(a), np.isnan(b))
+                if not same_nan:
+                    raise RuntimeError('%s %s 결측 위치가 다릅니다' % (k, ym))
+                ok = np.isfinite(a)
+                worst = max(worst, float(np.abs(a[ok] - b[ok]).max() / sc_[s_]))
+    lines += ['- 웹 자료 왕복 확인: 연도별 파일 %d개(%s)의 값이 중간 자료와 반올림 단위 %.2f칸 이내로 같고 결측 위치도 같음'
+              % (len(meta['years']), ', '.join(str(y) for y in meta['years']), worst), '']
+
+
 def main():
     os.makedirs(VAL, exist_ok=True)
     lines = ['# 1단계 검증 보고서', '', '이 파일은 `pipeline/validate.py`가 만든다.', '']
@@ -423,6 +512,8 @@ def main():
         cpc_compare(lines)
     if C.load_work('wind') is not None:
         wind_check(lines)
+    if C.load_work('enso') is not None:
+        enso_check(lines)
     with open(os.path.join(VAL, 'REPORT.md'), 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines) + '\n')
     print('\n'.join(lines))
