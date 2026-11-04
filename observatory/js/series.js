@@ -50,6 +50,12 @@
         var top = m.t + pi * (panelH + gap);
         function Y(val) { return top + (p.hi - Math.max(p.lo, Math.min(p.hi, val))) / (p.hi - p.lo) * panelH; }
         el('rect', { x: m.l, y: top, width: pw, height: panelH, class: 'sr-bg' }, svg);
+        // NOAA CPC 공식 엘니뇨·라니냐 기간(RONI) 음영
+        (st.episodes || []).forEach(function (e) {
+          var a = months.indexOf(e.start), b = months.indexOf(e.end);
+          if (a < 0 || b < 0) return;
+          el('rect', { x: X(a) - pw / n / 2, y: top, width: (b - a + 1) * pw / n, height: panelH, class: 'sr-ep sr-ep-' + e.phase }, svg);
+        });
         months.forEach(function (mm, i) {
           if (mm.slice(5) === '01' && i > 0) el('line', { x1: X(i) - pw / n / 2, x2: X(i) - pw / n / 2, y1: top, y2: top + panelH, class: 'sr-year' }, svg);
         });
@@ -85,6 +91,12 @@
           var t = el('text', { x: X(i), y: h - 8, class: 'sr-tick', 'text-anchor': 'middle' }, svg);
           t.textContent = mo === 1 ? mm.slice(0, 4) + '.1' : '7';
         }
+      });
+      // 비교 중 A 시점
+      (st.marks || []).forEach(function (mk) {
+        var ai = months.indexOf(mk);
+        if (ai < 0) return;
+        el('line', { x1: X(ai), x2: X(ai), y1: m.t - 2, y2: m.t + panelH * 2 + gap, class: 'sr-now sr-mark' }, svg);
       });
       // 현재 월
       var ci = months.indexOf(st.ym);

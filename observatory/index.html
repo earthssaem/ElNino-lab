@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>엘니뇨 실측자료 탐구실</title>
-<meta name="description" content="1997~1998, 2015~2016, 2023~2024년 엘니뇨 때 태평양의 해수면 온도, 수심별 수온, 무역풍, 강수량을 실제 관측·재분석 자료로 탐구하는 웹앱 (Pacific ENSO Observatory)">
+<title>엘니뇨·라니냐 실측자료 탐구실</title>
+<meta name="description" content="1997~1998, 2015~2016, 2023~2024년 엘니뇨와 1998~1999, 2020~2022년 라니냐 때 태평양의 해수면 온도, 수심별 수온, 무역풍, 강수량을 실제 관측·재분석 자료로 탐구하는 웹앱 (Pacific ENSO Observatory)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='1' y='1' width='38' height='38' rx='9' fill='%231f5d99'/%3E%3Cpath d='M6 14h28M6 20h28' stroke='%23fff' stroke-width='1.4' opacity='.55'/%3E%3Cpath d='M6 30C12 22 18 18 24 17s8 0 10 1' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,19 +14,25 @@
 <body>
 <div class="app" id="app">
   <header class="top">
-    <a class="brand" id="homeLink" href="./" title="처음 화면으로" aria-label="엘니뇨 실측자료 탐구실 — 처음 화면으로">
+    <a class="brand" id="homeLink" href="./" title="처음 화면으로" aria-label="엘니뇨·라니냐 실측자료 탐구실 — 처음 화면으로">
       <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
         <rect x="1" y="1" width="38" height="38" rx="9" style="fill:var(--accent)"/>
         <path d="M6 14h28M6 20h28" stroke="#fff" stroke-width="1.4" opacity=".55"/>
         <path d="M6 30C12 22 18 18 24 17s8 0 10 1" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
       </svg>
       <span class="brand-text">
-        <span class="brand-ko">엘니뇨 실측자료 탐구실</span>
+        <span class="brand-ko">엘니뇨·라니냐 실측자료 탐구실</span>
         <span class="brand-en">Pacific ENSO Observatory</span>
       </span>
     </a>
 
-    <div class="cases" role="radiogroup" aria-label="엘니뇨 사례" id="caseGroup"></div>
+    <div class="picker">
+      <div class="phase-seg" role="radiogroup" aria-label="현상" id="phaseGroup">
+        <button type="button" role="radio" data-phase="nino" aria-checked="true">엘니뇨</button>
+        <button type="button" role="radio" data-phase="nina" aria-checked="false" tabindex="-1">라니냐</button>
+      </div>
+      <div class="cases" role="radiogroup" aria-label="관측 사례" id="caseGroup"></div>
+    </div>
 
     <button type="button" class="btn btn-compare" id="compareBtn" aria-pressed="false">시기 비교</button>
   </header>
@@ -34,7 +40,7 @@
   <!-- 시간 조작 (기본 화면) -->
   <section class="timebar" id="timebar" aria-label="관측 시기">
     <div class="now">
-      <div class="now-month" id="nowMonth" aria-live="polite">—</div>
+      <div class="now-month"><span id="nowMonth" aria-live="polite">—</span> <span class="now-state" id="nowState" title="NOAA CPC 공식 판정(RONI)"></span></div>
       <div class="now-sub" id="nowSub"></div>
     </div>
     <div class="time-ctrl">
@@ -50,9 +56,11 @@
       </button>
       <div class="slider-wrap">
         <input type="range" id="timeSlider" min="0" max="0" value="0" aria-label="관측 연월">
+        <div class="slider-band" id="sliderBand" aria-hidden="true"></div>
         <div class="slider-years" id="sliderYears" aria-hidden="true"></div>
       </div>
     </div>
+    <p class="case-note" id="caseNote"></p>
   </section>
 
   <!-- 시기 비교 선택 -->
@@ -136,6 +144,7 @@
             <button type="button" role="radio" data-windmode="anom" aria-checked="false">평년 편차</button>
           </div>
         </div>
+        <p class="series-key"><span><i class="k-ep k-nino"></i>NOAA 공식 엘니뇨 기간</span><span><i class="k-ep k-nina"></i>NOAA 공식 라니냐 기간</span><span>(RONI 판정, 음영 없는 달은 중립)</span><span class="k-mark">비교 중이면 점선 = 시점 A</span></p>
         <div class="series" id="seriesBox"></div>
         <p class="fold-note">무역풍 값은 NCEP/NCAR Reanalysis 1의 10 m 동서 바람(u)을 선택한 해역 격자에서 위도 가중 평균한 값으로,
           <b>이 웹앱이 직접 계산한 지역 평균</b>입니다(공식 기관 지수가 아님). 해역의 경도 범위는 NOAA CPC 850 hPa 무역풍 지수와 같습니다.

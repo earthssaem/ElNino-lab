@@ -1,12 +1,13 @@
-/* 화면 상태와 조작 (엘니뇨 실측자료 탐구실)
+/* 화면 상태와 조작 (엘니뇨·라니냐 실측자료 탐구실)
    모든 패널(지도·바람·단면·등온선·관측값·시계열)은 같은 연·월(state.ym)의 자료로 함께 갱신된다. */
 (function () {
   'use strict';
 
   var $ = function (id) { return document.getElementById(id); };
-  var DEFAULT = { caseId: '2023', ym: '2023-12' };
+  var DEFAULT = { phase: 'nino', caseId: 'nino2023', ym: '2023-12' };
   var state = {
-    caseId: DEFAULT.caseId, ym: DEFAULT.ym,
+    phase: DEFAULT.phase, caseId: DEFAULT.caseId, ym: DEFAULT.ym,
+    lastCase: { nino: 'nino2023', nina: 'nina2020' },
     layer: 'sst', mapMode: 'value', arrows: true,
     secMode: 'value', iso: true,
     col: null, click: null, clickDepth: null,
@@ -24,10 +25,10 @@
     for (var i = 0; i < r.length; i++) if (r[i].id === state.regionId) return r[i];
     return r[0];
   }
-  function ensure(months) {
-    var ids = {};
-    months.forEach(function (m) { ids[OBS.caseOf(m)] = true; });
-    return Promise.all(Object.keys(ids).map(OBS.loadCase));
+  function ensure(months) { return OBS.ensure(months); }
+  function fmtShort(ym) { return ym.slice(0, 4) + '.' + parseInt(ym.slice(5, 7), 10); }
+  function periodText(list) {
+    return list.map(function (e) { return OBS.fmtMonth(e.start) + '~' + OBS.fmtMonth(e.end); }).join(', ');
   }
   function setRadio(group, attr, val) {
     document.querySelectorAll('[data-' + attr + ']').forEach(function (b) {
@@ -141,21 +142,37 @@
     sl.max = ms.length - 1; sl.value = i;
     sl.setAttribute('aria-valuetext', OBS.fmtMonth(state.ym));
     $('nowMonth').textContent = OBS.fmtMonth(state.ym);
-    var si = OBS.series.months.indexOf(state.ym), a = OBS.series.nino34.anom[si];
-    $('nowSub').textContent = 'Niño 3.4 해수면 온도 편차 ' + (a === null ? '자료 없음' : OBS.sign(a, 2) + ' °C');
+    var si = OBS.series.months.indexOf(state.ym), a = OBS.series.nino34.anom[si], es = OBS.ensoState(state.ym);
+    var tag = $('nowState');
+    tag.textContent = OBS.ensoName(es);
+    tag.setAttribute('data-state', es === 1 ? 'nino' : es === -1 ? 'nina' : 'neutral');
+    $('nowSub').textContent = 'Niño 3.4 편차 ' + (a === null ? '자료 없음' : OBS.sign(a, 2) + ' °C');
+    var c = OBS.caseInfo(state.caseId);
+    $('caseNote').innerHTML = '<b>' + c.name + '</b> · 공식 ' + (c.phase === 'nino' ? '엘니뇨' : '라니냐') + ' 기간(NOAA CPC RONI): <b>' +
+      periodText(c.official) + '</b> · 자료 탐색 기간: ' + OBS.fmtMonth(c.start) + '~' + OBS.fmtMonth(c.end) +
+      ' <span class="cn-help">(월별 상태 표시는 NOAA 공식 판정, 막대 아래 색 띠 = 공식 엘니뇨·라니냐 기간)</span>';
     $('prevBtn').disabled = i <= 0;
     $('nextBtn').disabled = i >= ms.length - 1;
+    document.querySelectorAll('#phaseGroup button').forEach(function (b) {
+      var on = b.getAttribute('data-phase') === state.phase;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+    });
     document.querySelectorAll('#caseGroup button').forEach(function (b) {
-      b.setAttribute('aria-checked', b.getAttribute('data-case') === state.caseId ? 'true' : 'false');
-      b.tabIndex = b.getAttribute('data-case') === state.caseId ? 0 : -1;
+      var on = b.getAttribute('data-case') === state.caseId;
+      b.hidden = OBS.caseInfo(b.getAttribute('data-case')).phase !== state.phase;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
     });
   }
 
   function drawSeries() {
     if (!series) series = OBSSeries.create($('seriesBox'), function (ym) { stop(); goMonth(ym); });
     var ym = state.compare ? state.B : state.ym;
-    var info = OBS.caseInfo(OBS.caseOf(ym));
-    series.draw({ months: info.months, ym: ym, region: region(), windMode: state.windMode });
+    var info = OBS.caseInfo(state.caseId);
+    if (info.months.indexOf(ym) < 0) info = OBS.casesWith(ym)[0] || info;
+    var marks = state.compare && info.months.indexOf(state.A) >= 0 ? [state.A] : [];
+    series.draw({ months: info.months, ym: ym, marks: marks, episodes: info.episodes, region: region(), windMode: state.windMode });
   }
 
   /* ---------- 관측값 ---------- */
@@ -238,23 +255,26 @@
 
   /* ---------- 조작 ---------- */
   function goMonth(ym) {
-    if (!OBS.caseOf(ym)) return;
-    var cid = OBS.caseOf(ym);
+    if (!OBS.has(ym)) return;
     if (state.compare) {     // 비교 중 그래프를 누르면 B를 바꾼다
       state.B = ym; $('pickB').value = ym;
       ensure([ym]).then(drawAll);
       return;
     }
     state.ym = ym;
-    if (cid !== state.caseId) state.caseId = cid;
-    ensure([ym]).then(drawAll);
+    if (caseMonths().indexOf(ym) < 0) {
+      var c = OBS.casesWith(ym)[0];
+      if (!c) return;
+      state.caseId = c.id; state.phase = c.phase;
+    }
+    ensure(caseMonths()).then(drawAll);
   }
 
   function step(d) {
     var ms = caseMonths(), i = ms.indexOf(state.ym) + d;
     if (i < 0 || i >= ms.length) return false;
     state.ym = ms[i];
-    drawAll();
+    ensure([state.ym]).then(drawAll);
     return true;
   }
 
@@ -276,11 +296,14 @@
 
   function setCase(id) {
     stop();
-    state.caseId = id;
     var c = OBS.caseInfo(id);
-    var peak = { '1997': '1997-12', '2015': '2015-12', '2023': '2023-12' }[id];
-    state.ym = c.months.indexOf(peak) >= 0 ? peak : c.months[0];
-    ensure([state.ym]).then(drawAll);
+    state.caseId = id; state.phase = c.phase; state.lastCase[c.phase] = id;
+    state.ym = c.months.indexOf(c.focus) >= 0 ? c.focus : c.months[0];
+    ensure(c.months).then(drawAll);      // 슬라이더·재생이 끊기지 않게 사례 기간의 연도 파일을 모두 읽는다
+  }
+  function setPhase(p) {
+    if (state.compare) setCompare(false);
+    setCase(state.lastCase[p]);
   }
 
   function onMapClick(r, e) {
@@ -331,7 +354,7 @@
     if (on) {
       var y = parseInt(state.ym.slice(0, 4), 10) - 1, prev = y + state.ym.slice(4);
       state.B = state.ym;
-      state.A = OBS.caseOf(prev) ? prev : caseMonths()[0];
+      state.A = OBS.has(prev) ? prev : caseMonths()[0];
       $('pickA').value = state.A; $('pickB').value = state.B;
     }
     buildViews();
@@ -343,7 +366,7 @@
       var sel = $(id);
       OBS.meta.cases.forEach(function (c) {
         var og = document.createElement('optgroup');
-        og.label = c.name;
+        og.label = c.name + ' (자료 ' + fmtShort(c.start) + '~' + fmtShort(c.end) + ')';
         c.months.forEach(function (m) {
           var o = document.createElement('option');
           o.value = m; o.textContent = OBS.fmtMonth(m);
@@ -359,18 +382,29 @@
   }
 
   function buildCases() {
-    var g = $('caseGroup');
+    var g = $('caseGroup'), pg = $('phaseGroup');
+    pg.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () { setPhase(b.getAttribute('data-phase')); });
+    });
+    pg.addEventListener('keydown', function (e) {
+      var d = { ArrowLeft: 1, ArrowUp: 1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      var np = state.phase === 'nino' ? 'nina' : 'nino';
+      setPhase(np);
+      setTimeout(function () { var b = pg.querySelector('[data-phase="' + np + '"]'); if (b) b.focus(); }, 0);
+    });
     OBS.meta.cases.forEach(function (c) {
       var b = document.createElement('button');
       b.type = 'button'; b.setAttribute('role', 'radio');
       b.setAttribute('data-case', c.id);
-      b.innerHTML = '<span class="c-name">' + c.name.replace(' 엘니뇨', '') + '</span><span class="c-sub">' + c.start.slice(0, 4) + '~' + c.end.slice(0, 4) + '</span>';
-      b.setAttribute('aria-label', c.name + ' (' + OBS.fmtMonth(c.start) + '~' + OBS.fmtMonth(c.end) + ')');
+      b.innerHTML = '<span class="c-name">' + c.name.replace(/ (엘니뇨|라니냐)$/, '') + '</span><span class="c-sub"><span class="c-pre">자료 </span>' + fmtShort(c.start) + '~' + fmtShort(c.end) + '</span>';
+      b.setAttribute('aria-label', c.name + ', 자료 탐색 기간 ' + OBS.fmtMonth(c.start) + '~' + OBS.fmtMonth(c.end) + ', 공식 발생 기간 ' + periodText(c.official));
       b.addEventListener('click', function () { if (state.compare) setCompare(false); setCase(c.id); });
       g.appendChild(b);
     });
     g.addEventListener('keydown', function (e) {
-      var ids = OBS.meta.cases.map(function (c) { return c.id; }), i = ids.indexOf(state.caseId);
+      var ids = OBS.meta.cases.filter(function (c) { return c.phase === state.phase; }).map(function (c) { return c.id; }), i = ids.indexOf(state.caseId);
       var d = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
       if (!d) return;
       e.preventDefault();
@@ -381,11 +415,20 @@
   }
 
   function sliderYears() {
-    var ms = caseMonths(), box = $('sliderYears'), h = '';
+    var ms = caseMonths(), box = $('sliderYears'), h = '', n = ms.length - 1;
     ms.forEach(function (m, i) {
-      if (m.slice(5) === '01') h += '<span style="left:' + (i / (ms.length - 1) * 100) + '%">' + m.slice(0, 4) + '</span>';
+      if (m.slice(5) === '01') h += '<span style="left:' + (i / n * 100) + '%">' + m.slice(0, 4) + '</span>';
     });
     box.innerHTML = h;
+    // 공식 엘니뇨·라니냐 기간 띠(NOAA CPC RONI). 한 달 = 슬라이더 눈금 한 칸
+    var band = '';
+    OBS.caseInfo(state.caseId).episodes.forEach(function (e) {
+      var a = ms.indexOf(e.start), b = ms.indexOf(e.end);
+      var l = Math.max(0, (a - 0.5) / n * 100), r = Math.min(100, (b + 0.5) / n * 100);
+      band += '<i class="ep-' + e.phase + '" style="left:' + l + '%;width:' + (r - l) + '%" title="공식 ' +
+        (e.phase === 'nino' ? '엘니뇨' : '라니냐') + ' ' + OBS.fmtMonth(e.start) + '~' + OBS.fmtMonth(e.end) + '"></i>';
+    });
+    $('sliderBand').innerHTML = band;
   }
 
   function segGroup(attr, key) {
@@ -420,9 +463,12 @@
       '<tr><td>해수면 온도 지도, Niño 3.4</td><td><a href="https://www.ncei.noaa.gov/products/extended-reconstructed-sst" target="_blank" rel="noopener">NOAA ERSST v5</a> (NCEI) 변수 sst</td><td>선박·부이 관측을 통계적으로 재구성한 분석 자료</td><td>2° × 2°, 월평균</td><td>°C. 파일의 1971~2000 기준 편차(ssta)는 쓰지 않음</td></tr>' +
       '<tr><td>수온 단면, 20 ℃ 등온선</td><td><a href="https://www.cpc.ncep.noaa.gov/products/GODAS/" target="_blank" rel="noopener">NCEP GODAS</a> (NOAA PSL 배포본) 변수 pottmp</td><td>해양 관측을 해양 모형에 동화한 해양 재분석</td><td>경도 1° × 위도 1/3°, 수심 층 5~225 m는 10 m 간격(그 아래 238, 262, 303, 366, 459, 584 m), 월평균</td><td>K → °C. 잠재 수온(0~500 m에서 현장 수온과 0.1 °C 미만 차이). 2°S~2°N 위도 격자 12개 중 값이 있는 해양 격자만 먼저 위도 평균한 뒤 등온선·편차 계산</td></tr>' +
       '<tr><td>바람 화살표, 무역풍 그래프</td><td><a href="https://psl.noaa.gov/data/gridded/data.ncep.reanalysis.html" target="_blank" rel="noopener">NCEP/NCAR Reanalysis 1</a> (NOAA PSL) 10 m uwnd·vwnd</td><td>대기 관측을 모형에 동화한 대기 재분석</td><td>T62 가우스 격자(경도 1.875° × 위도 약 1.9°), 월평균</td><td>m/s. 1991~2024 전 기간 이 자료 하나만 사용(다른 재분석과 섞지 않음)</td></tr>' +
+      '<tr><td>월별 엘니뇨·라니냐·중립 표시, 공식 발생 기간</td><td><a href="https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/" target="_blank" rel="noopener">NOAA CPC Relative Oceanic Niño Index (RONI)</a> 표의 공식 판정. 참고: <a href="https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/oni/v5/" target="_blank" rel="noopener">ONI (ERSST v5)</a></td><td>공식 기관 판정 기록</td><td>3개월 이동 평균(계절)</td><td>3개월 평균이 ±0.5 °C 기준을 겹치는 5개 계절 이상 연속해서 넘은 계절. 계절은 가운데 달로 표시(DJF → 1월)</td></tr>' +
       '<tr><td>강수량 지도</td><td><a href="https://www.ncei.noaa.gov/products/climate-data-records/precipitation-gpcp-monthly" target="_blank" rel="noopener">GPCP Monthly v2.3</a> (NOAA CDR, 파일 버전 v02r03)</td><td>위성·우량계 관측을 합친 분석 자료</td><td>2.5° × 2.5°, 월평균</td><td>원자료 mm/일 × 그 달 실제 일수 = mm/월</td></tr>' +
       '</tbody></table></div>' +
+      caseTable() +
       '<h3>계산 방법</h3><ul>' +
+      '<li><b>엘니뇨·라니냐·중립 표시</b>: 날짜 옆의 상태는 NOAA CPC가 공식 감시에 쓰는 RONI 표의 판정(빨강 = 엘니뇨, 파랑 = 라니냐)을 그대로 옮긴 것입니다(NWS 공지 26-05). 월별 Niño 3.4 편차가 ±0.5 °C를 넘었다고 해서 그 달을 엘니뇨·라니냐로 정하지 않습니다. 같은 사례 안에서도 발생 전·후 달은 중립으로 표시됩니다.</li>' +
       '<li><b>Niño 3.4 편차</b>: ERSST v5의 5°S~5°N, 170°W~120°W 위도 가중 평균에서 같은 달 1991~2020 평년값을 뺀 값. NOAA CPC 공식 값과 1991~2024년 408개월 모두 0.03 °C 이내로 일치함을 확인했습니다.</li>' +
       '<li><b>무역풍 지역 평균</b>: R1 10 m 동서 바람 u를 5°S~5°N 격자에서 위도 가중 평균(이 웹앱이 직접 계산). 서태평양 135°E~180°, 중앙 태평양 175°W~140°W, 동태평양 135°W~120°W로 NOAA CPC 850 hPa 무역풍 지수와 경도 범위가 같지만 고도가 다릅니다(편차 상관계수 0.73~0.96).</li>' +
       '<li><b>20 ℃ 등온선 깊이</b>: 단면의 각 경도에서 위로부터 수온이 20 ℃ 이상에서 미만으로 바뀌는 첫 두 자료 층 사이를 선형 보간. 결측 층을 먼저 만나거나 20 ℃를 지나지 않으면 "측정 불가".</li>' +
@@ -439,8 +485,20 @@
       '<li>NCEP/NCAR Reanalysis 1은 1990년대에 만든 비교적 오래된 재분석으로 격자가 성기고(약 1.9°), 최신 재분석(ERA5 등)과 세부 값이 다를 수 있습니다. 바람 그래프의 값은 공식 지수가 아니라 이 웹앱의 계산값입니다.</li>' +
       '<li>엘니뇨 때도 무역풍이 늘 서풍으로 바뀌는 것은 아닙니다. 지도의 화살표와 그래프는 실제 자료 그대로이며, 바람과 수온의 변화가 같은 달에 함께 나타나도록 맞추지 않았습니다.</li>' +
       '<li>색 범위는 변수마다 고정되어 있고, 범위 밖 값은 양 끝 색으로 칠합니다.</li>' +
+      '<li>RONI는 ERSST v6로 계산하고 열대 전체의 수온 변화를 뺀 지수라서, 이 웹앱이 ERSST v5로 계산한 Niño 3.4 편차와 값이 다를 수 있습니다. 공식 판정은 RONI를 따르고, 화면의 수치는 ERSST v5 그대로 둡니다.</li>' +
+      '<li>엘니뇨·라니냐의 동서 태평양 변화는 사례마다 다르고 비대칭일 수 있습니다. 전형적인 모습과 다르더라도 자료를 고치지 않았습니다.</li>' +
       '</ul>' +
       '<p class="src-foot">자료를 만든 Python 코드와 검증 보고서는 저장소의 <code>pipeline/</code> 폴더에 있습니다(<code>pipeline/validation/REPORT.md</code>).</p>';
+  }
+
+  function caseTable() {
+    var rows = OBS.meta.cases.map(function (c) {
+      return '<tr><td>' + c.name + '</td><td>' + periodText(c.official) + '</td><td>' + periodText(c.official_oni5) +
+        '</td><td>' + OBS.fmtMonth(c.start) + '~' + OBS.fmtMonth(c.end) + '</td></tr>';
+    }).join('');
+    return '<h3>관측 사례: 공식 발생 기간과 자료 탐색 기간</h3><div class="table-wrap"><table><thead><tr><th>사례</th>' +
+      '<th>공식 발생 기간 (NOAA CPC RONI)</th><th>참고: ONI (ERSST v5)</th><th>자료 탐색 기간</th></tr></thead><tbody>' + rows +
+      '</tbody></table></div><p class="src-foot">자료 탐색 기간은 발생 전·후를 함께 볼 수 있도록 넓게 잡았습니다. 공식 기간은 NOAA CPC 표에서 엘니뇨·라니냐로 칠해진 계절을 가운데 달로 옮겨 이은 것입니다.</p>';
   }
 
   function home(e) {
@@ -451,6 +509,7 @@
     $('mapReadout').textContent = '지도를 누르면 그 위치의 관측값을 보여 줍니다. 단면 영역(2°S~2°N, 점선 띠)을 누르면 아래 단면에도 같은 경도가 표시됩니다.';
     $('secReadout').textContent = '단면을 누르면 그 경도의 20 ℃ 등온선 깊이를 잽니다. 단면을 고른 뒤 ←/→ 키로 1°씩 옮길 수 있습니다.';
     window.scrollTo(0, 0);
+    state.lastCase = { nino: 'nino2023', nina: 'nina2020' };
     setCase(DEFAULT.caseId);
   }
 
@@ -476,7 +535,7 @@
       segGroup('windmode', 'windMode');
       $('arrowChk').addEventListener('change', function () { state.arrows = this.checked; drawAll(); });
       $('isoChk').addEventListener('change', function () { state.iso = this.checked; drawAll(); });
-      $('timeSlider').addEventListener('input', function () { stop(); state.ym = caseMonths()[+this.value]; drawAll(); });
+      $('timeSlider').addEventListener('input', function () { stop(); state.ym = caseMonths()[+this.value]; ensure([state.ym]).then(drawAll); });
       $('prevBtn').addEventListener('click', function () { stop(); step(-1); });
       $('nextBtn').addEventListener('click', function () { stop(); step(1); });
       $('playBtn').addEventListener('click', function () { if (state.playing) stop(); else play(); });
@@ -485,7 +544,7 @@
       $('homeLink').addEventListener('click', home);
 
       buildViews();
-      return ensure([state.ym]);
+      return ensure(caseMonths());
     }).then(function () {
       sliderYears();
       drawAll();

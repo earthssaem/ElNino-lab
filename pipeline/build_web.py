@@ -2,7 +2,9 @@
 
 - 실제 값과 1991~2020년 월별 평년값을 정수(scale 단위)로 저장하고, 편차는 웹앱이 '실제 값 − 같은 달 평년값'으로 계산한다.
 - 결측은 null. 값을 만들어 넣지 않는다.
-- 사례 기간(앞뒤 해 포함)의 월만 지도·단면 자료를 싣고, 시계열은 1991~2024 전체를 싣는다.
+- 사례 기간(앞뒤 해 포함)이 걸친 해의 월별 지도·단면 자료를 연도별 파일(year-YYYY.json)로 싣는다.
+  사례끼리 기간이 겹쳐도 같은 달은 한 번만 저장한다. 시계열은 1991~2024 전체를 싣는다.
+- 각 사례에는 NOAA CPC 공식 판정(RONI, 참고 ONI v5)으로 구한 실제 발생 기간을 함께 적는다.
 """
 import datetime
 
@@ -42,17 +44,17 @@ def main():
         'section': [C.ints(clim['section'][m], SCALE['section']) for m in range(12)],
     })
 
-    cases = []
-    for c in C.CASES:
-        ms = [m for m in t if c['start'] <= m <= c['end']]
+    # 월별 자료는 연도별 파일로 저장한다(사례 기간이 겹쳐도 같은 달을 두 번 저장하지 않음)
+    oc = gd['ocean_count'].ravel()
+    for y in C.case_years():
+        ms = ['%d-%02d' % (y, m) for m in range(1, 13)]
         idx = [t.index(m) for m in ms]
-        oc = gd['ocean_count'].ravel()
         cdiff = []          # 평균에 쓴 격자 수가 해양 격자 수와 다른 칸(원자료 결측)만 [칸 번호, 격자 수]로
         for i in idx:
             cn = gd['count'][i].ravel()
             cdiff.append([[int(k), int(cn[k])] for k in np.where(cn != oc)[0]])
-        C.write_json('case-%s.json' % c['id'], {
-            'id': c['id'], 'months': ms,
+        C.write_json('year-%d.json' % y, {
+            'year': y, 'months': ms,
             'sst': [C.ints(sst['sst'][i], SCALE['sst']) for i in idx],
             'precip': [C.ints(pr['precip'][i], SCALE['precip']) for i in idx],
             'u': [C.ints(wd['u'][i], SCALE['wind']) for i in idx],
@@ -60,10 +62,39 @@ def main():
             'section': [C.ints(gd['section'][i], SCALE['section']) for i in idx],
             'section_count_diff': cdiff,
         })
-        cases.append(dict(c, months=ms))
+
+    # 공식 ENSO 판정(NOAA CPC): 주 = RONI(공식 감시 지수), 참고 = ONI v5
+    en = C.load_work('enso')
+    assert list(en['time']) == t
+
+    def eps(state, months, sign=None):
+        out, cur = [], None
+        for m in months:
+            s = int(state[t.index(m)])
+            if cur and s == cur[2] and s != 0:
+                cur[1] = m
+            else:
+                if cur and cur[2] != 0:
+                    out.append(cur)
+                cur = [m, m, s]
+        if cur and cur[2] != 0:
+            out.append(cur)
+        return [{'start': a, 'end': b, 'phase': 'nino' if s > 0 else 'nina'} for a, b, s in out if sign is None or s == sign]
+
+    cases = []
+    for c in C.CASES:
+        ms = [m for m in t if c['start'] <= m <= c['end']]
+        sign = 1 if c['phase'] == 'nino' else -1
+        cases.append(dict(c, months=ms,
+                          official=eps(en['roni_state'], ms, sign), official_oni5=eps(en['oni5_state'], ms, sign),
+                          episodes=eps(en['roni_state'], ms)))
+        if not cases[-1]['official']:
+            raise RuntimeError('%s 기간에 공식 %s 판정 달이 없습니다' % (c['name'], c['phase']))
 
     n34, _ = anomalies(sst['nino34'], t)
-    series = {'months': t, 'nino34': {'value': r(sst['nino34']), 'anom': r(n34)}, 'wind': {}}
+    series = {'months': t, 'nino34': {'value': r(sst['nino34']), 'anom': r(n34)}, 'wind': {},
+              'enso': {'roni': r(en['roni_value'], 1), 'roni_state': [int(x) for x in en['roni_state']],
+                       'oni5': r(en['oni5_value'], 1), 'oni5_state': [int(x) for x in en['oni5_state']]}}
     for reg in C.WIND_REGIONS:
         a, _ = anomalies(wd['idx_' + reg['id']], t)
         series['wind'][reg['id']] = {'value': r(wd['idx_' + reg['id']]), 'anom': r(a)}
@@ -72,7 +103,7 @@ def main():
     meta = {
         'generated': datetime.date.today().isoformat(),
         'period': [t[0], t[-1]], 'climatology': [C.CLIM0, C.CLIM1],
-        'cases': cases, 'scale': SCALE,
+        'cases': cases, 'years': C.case_years(), 'scale': SCALE,
         'grids': {
             'sst': {'lat': r(sst['lat']), 'lon': r(sst['lon']), 'res': '2° × 2°'},
             'precip': {'lat': r(pr['lat']), 'lon': r(pr['lon']), 'res': '2.5° × 2.5°'},

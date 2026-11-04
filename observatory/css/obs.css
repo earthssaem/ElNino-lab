@@ -20,6 +20,12 @@
   --iso: #0b1626;
   --nino-line: #c0392b;
   --wind-line: #1f5d99;
+  --nino: #b4472c;
+  --nino-soft: #fbece6;
+  --nina: #1d6a9e;
+  --nina-soft: #e5f0f8;
+  --ep-nino: rgba(196, 84, 52, .62);
+  --ep-nina: rgba(36, 108, 168, .62);
   --font-ui: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
   --font-num: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --radius: 10px;
@@ -43,6 +49,12 @@
     --nodata: #59606b;
     --nino-line: #ef7b6c;
     --wind-line: #79b1e6;
+    --nino: #f09a7f;
+    --nino-soft: #33221d;
+    --nina: #85bde6;
+    --nina-soft: #1a2a38;
+    --ep-nino: rgba(240, 140, 110, .7);
+    --ep-nina: rgba(120, 180, 230, .7);
     color-scheme: dark;
   }
 }
@@ -72,6 +84,18 @@ button, input, select { font: inherit; color: inherit; }
 .brand-ko { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
 .brand-en { font-size: 11.5px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; font-family: var(--font-num); }
 
+.picker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.phase-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.phase-seg button {
+  border: 0; background: transparent; padding: 9px 14px; cursor: pointer; font-weight: 600; font-size: 14px; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.phase-seg button + button { border-left: 1px solid var(--line); }
+.phase-seg button::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .35; }
+.phase-seg button[data-phase="nino"][aria-checked="true"] { color: var(--nino); background: var(--nino-soft); }
+.phase-seg button[data-phase="nina"][aria-checked="true"] { color: var(--nina); background: var(--nina-soft); }
+.phase-seg button[aria-checked="true"]::before { opacity: 1; }
+.phase-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cases { display: flex; gap: 4px; padding: 3px; background: var(--line-soft); border-radius: 10px; }
 .cases button {
   display: flex; flex-direction: column; align-items: center; line-height: 1.15;
@@ -102,6 +126,19 @@ button, input, select { font: inherit; color: inherit; }
 .now { min-width: 190px; }
 .now-month { font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .now-sub { font-size: 12.5px; color: var(--muted); font-family: var(--font-num); }
+.now-state {
+  display: inline-block; vertical-align: middle; font-size: 12.5px; font-weight: 700; letter-spacing: 0; padding: 2px 8px;
+  border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); position: relative; top: -3px;
+}
+.now-state[data-state="nino"] { color: var(--nino); border-color: var(--nino); background: var(--nino-soft); }
+.now-state[data-state="nina"] { color: var(--nina); border-color: var(--nina); background: var(--nina-soft); }
+.case-note { flex: 1 1 100%; margin: -4px 0 0; font-size: 12.5px; color: var(--muted); }
+.case-note b { color: var(--ink-2); font-weight: 600; }
+.case-note .cn-help { font-size: 11.5px; }
+.slider-band { position: absolute; left: 8px; right: 8px; top: 27px; height: 4px; }
+.slider-band i { position: absolute; top: 0; height: 4px; border-radius: 2px; }
+.slider-band i.ep-nino, .sr-ep-nino { background: var(--ep-nino); fill: var(--ep-nino); }
+.slider-band i.ep-nina, .sr-ep-nina { background: var(--ep-nina); fill: var(--ep-nina); }
 .time-ctrl { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 280px; }
 .btn.icon { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; }
 .btn.icon svg { width: 18px; height: 18px; }
@@ -109,7 +146,7 @@ button, input, select { font: inherit; color: inherit; }
 .btn.play.on .i-play { display: none; }
 .btn.play.on .i-pause { display: block; }
 .btn.play.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.slider-wrap { flex: 1; position: relative; padding: 4px 8px 16px; min-width: 160px; }
+.slider-wrap { flex: 1; position: relative; padding: 4px 8px 20px; min-width: 160px; }
 .slider-wrap input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; height: 24px; }
 .slider-years { position: absolute; left: 8px; right: 8px; bottom: 0; height: 14px; }
 .slider-years span {
@@ -229,6 +266,13 @@ main { display: flex; flex-direction: column; gap: 18px; padding-top: 16px; }
 .sr-line { fill: none; stroke-width: 2; stroke-linejoin: round; }
 .sr-clim { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 4 3; }
 .sr-now { stroke: var(--ink); stroke-width: 1.6; }
+.sr-mark { stroke-dasharray: 4 3; }
+.sr-ep { opacity: .16; }
+.series-key { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.series-key span { display: inline-flex; align-items: center; gap: 5px; }
+.k-ep { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+.k-nino { background: var(--ep-nino); opacity: .45; }
+.k-nina { background: var(--ep-nina); opacity: .45; }
 .sr-tick { font: 11px var(--font-num); fill: var(--muted); }
 .sr-title { font: 600 12.5px var(--font-ui); fill: var(--ink-2); }
 .sr-note { font: 11.5px var(--font-ui); fill: var(--muted); }
@@ -261,11 +305,19 @@ footer .hub { font-weight: 500; white-space: nowrap; text-decoration: underline;
 @media (max-width: 1100px) {
   .views.two { grid-template-columns: 1fr; }
 }
+@media (max-width: 1180px) {
+  .cases .c-pre { display: none; }
+  .cases button { padding: 6px 10px; }
+  .phase-seg button { padding: 9px 11px; }
+  .top { gap: 12px 16px; }
+}
 @media (max-width: 760px) {
   .app { padding: 0 12px 24px; }
-  .brand-ko { font-size: 17px; }
+  .brand-ko { font-size: 16px; }
+  .brand { margin-right: 96px; }
   .top { gap: 10px; }
-  .cases { width: 100%; }
+  .picker { width: 100%; }
+  .cases { flex: 1 1 100%; }
   .cases button { flex: 1; padding: 6px 4px; }
   .btn-compare { position: absolute; right: 12px; top: 14px; }
   .top { position: relative; }
