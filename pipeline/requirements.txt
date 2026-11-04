@@ -1,0 +1,5 @@
+numpy
+xarray
+netCDF4
+matplotlib
+cdsapi  # 선택: Copernicus CDS 계정 키가 있을 때만 사용
