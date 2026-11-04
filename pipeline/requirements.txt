@@ -2,4 +2,4 @@ numpy
 xarray
 netCDF4
 matplotlib
-cdsapi  # 선택: Copernicus CDS 계정 키가 있을 때만 사용
+pypdfium2  # 검증 그림에서 CPC 브리핑 PDF를 읽을 때

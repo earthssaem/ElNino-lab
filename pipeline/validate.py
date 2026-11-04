@@ -16,8 +16,20 @@ from matplotlib.colors import BoundaryNorm  # noqa: E402
 
 import common as C  # noqa: E402
 
+LAND = []
+try:
+    import json as _json
+    _src = open(os.path.join(os.path.dirname(C.ROOT), 'js', 'land.js'), encoding='utf-8').read()
+    LAND = _json.loads(_src[_src.index('ENSO_LAND=') + 10:_src.rindex(']') + 1])
+except (OSError, ValueError):
+    pass
+
 VAL = os.path.join(C.ROOT, 'validation')
-CPC_NINO = os.environ.get('CPC_NINO', os.path.join(C.RAW, 'cpc', 'ersst5.nino.mth.91-20.ascii'))
+CPC_URL = 'https://www.cpc.ncep.noaa.gov/data/indices/'
+
+
+def cpc_file(name):
+    return C.download(CPC_URL + name, os.path.join(C.RAW, 'cpc', name))
 
 
 def iso_depth(profile, depth, target=20.0):
@@ -48,7 +60,7 @@ def nino_check(lines):
     cl = C.climatology(n, t)
     an = n - np.array([cl[int(x[5:7]) - 1] for x in t])
     cpc = {}
-    for line in open(CPC_NINO).read().splitlines()[1:]:
+    for line in open(cpc_file('ersst5.nino.mth.91-20.ascii')).read().splitlines()[1:]:
         p = line.split()
         cpc['%04d-%02d' % (int(p[0]), int(p[1]))] = (float(p[8]), float(p[9]))
     com = [x for x in t if x in cpc]
@@ -211,6 +223,122 @@ def cpc_compare(lines):
               '아래: 이 파이프라인. 회색은 자료 없음(육지).', '']
 
 
+CPC_WIND = {'west': 'wpac850', 'central': 'cpac850', 'east': 'epac850'}
+
+
+def parse_cpc_wind(path):
+    out, sec = {}, None
+    for line in open(path).read().splitlines():
+        if 'ORIGINAL' in line:
+            sec = 'orig'
+        elif 'ANOMALY' in line:
+            sec = 'anom'
+        elif 'STANDARDIZED' in line:
+            sec = 'std'
+        p = line.split()
+        if sec and len(p) == 13 and p[0].isdigit():
+            for m in range(12):
+                v = float(p[m + 1])
+                if v > -99:
+                    out.setdefault(sec, {})['%s-%02d' % (p[0], m + 1)] = v
+    return out
+
+
+def wind_check(lines):
+    w = C.load_work('wind')
+    w8 = C.load_work('wind850')
+    t = list(w['time'])
+    lines += ['## 4. 무역풍 (NCEP/NCAR Reanalysis 1, 1991~2024 전 기간 같은 자료)', '',
+              '- 10 m 바람 격자: T62 가우스 격자, 경도 1.875° × 위도 약 1.9°, 지도 범위 안 %d×%d점, 단위 m/s'
+              % (len(w['lat']), len(w['lon'])),
+              '- 결측: u %d개, v %d개' % (int(np.isnan(w['u']).sum()), int(np.isnan(w['v']).sum())), '',
+              '### 4-1. 가공 방법 검증: 같은 R1 850 hPa 자료로 NOAA CPC 무역풍 지수 재현', '',
+              'CPC 지수는 R1(CDAS)의 850 hPa 동서 바람을 5°N~5°S에서 평균하고 동풍을 양수로 나타낸 값이다. '
+              '같은 방법으로 직접 계산해 CPC 공식 값과 비교했다(해역·부호·날짜 대응 확인).', '',
+              '| 해역 | CPC 파일 | 개월 | 상관계수 | 평균 차이 | 최대 차이 |', '| --- | --- | --- | --- | --- | --- |']
+    t8 = list(w8['time'])
+    fig, axs = plt.subplots(3, 1, figsize=(10, 7.5), sharex=True)
+    for ax, r in zip(axs, C.WIND_REGIONS):
+        c = parse_cpc_wind(cpc_file(CPC_WIND[r['id']]))
+        x = w8['easterly_' + r['id']]
+        com = [m for m in t8 if m in c['orig']]
+        a = np.array([x[t8.index(m)] for m in com])
+        b = np.array([c['orig'][m] for m in com])
+        lines.append('| %s (%s) | %s | %d | %.4f | %+.3f m/s | %.2f m/s |' % (
+            r['name'], '%g~%g°E' % r['lon'], CPC_WIND[r['id']], len(com), np.corrcoef(a, b)[0, 1], (a - b).mean(), abs(a - b).max()))
+        # 10 m 지수 편차(1991~2020) vs CPC 850 hPa 편차(1981~2010 기준, 공식 표)
+        u10 = w['idx_' + r['id']]
+        cl = C.climatology(u10, t)
+        an10 = u10 - np.array([cl[int(m[5:7]) - 1] for m in t])
+        com2 = [m for m in t if m in c['anom']]
+        p = np.array([-an10[t.index(m)] for m in com2])     # 동풍 강화 = 양수로 맞춤
+        q = np.array([c['anom'][m] for m in com2])
+        r['corr10'] = np.corrcoef(p, q)[0, 1]
+        xs = np.arange(len(com2))
+        ax.plot(xs, q, color='0.6', lw=2.2, label='CPC 850 hPa trade wind index anomaly (official)')
+        ax.plot(xs, p * 2, color='C0', lw=1, label='this pipeline: R1 10 m u anomaly x(-2)')
+        ax.axhline(0, color='k', lw=0.5)
+        ax.set_ylabel('m/s')
+        ax.set_title('%s  corr=%.2f' % (r['id'], r['corr10']), fontsize=8)
+        ax.legend(fontsize=7, loc='lower left')
+        ax.set_xticks(xs[::36])
+        ax.set_xticklabels([com2[i][:4] for i in xs[::36]])
+    fig.tight_layout()
+    fig.savefig(os.path.join(VAL, 'wind_index_vs_cpc.png'), dpi=110)
+    plt.close(fig)
+    lines += ['', '### 4-2. 10 m 지수와 CPC 850 hPa 지수의 관계', '',
+              '고도가 달라 값의 크기는 같지 않으므로 편차의 상관만 본다(10 m는 1991~2020, CPC 표는 1981~2010 평년 기준).', '']
+    for r in C.WIND_REGIONS:
+        lines.append('- %s: 상관계수 %.2f' % (r['name'], r['corr10']))
+    lines += ['', '### 4-3. 대표 엘니뇨 시기의 10 m 동서 바람 (m/s, 괄호는 1991~2020 같은 달 평년 대비 편차)', '',
+              '| 월 | ' + ' | '.join(r['name'] for r in C.WIND_REGIONS) + ' | Niño 3.4 편차 |', '|---' * 5 + '|']
+    e = C.load_work('ersst')
+    nc = C.climatology(e['nino34'], t)
+    na = e['nino34'] - np.array([nc[int(m[5:7]) - 1] for m in t])
+    for ym in ['1996-12', '1997-03', '1997-06', '1997-12', '1998-06', '2014-12', '2015-06', '2015-12',
+               '2022-12', '2023-06', '2023-12', '2024-06']:
+        i = t.index(ym)
+        cells = []
+        for r in C.WIND_REGIONS:
+            x = w['idx_' + r['id']]
+            cl = C.climatology(x, t)
+            cells.append('%+.1f (%+.1f)' % (x[i], x[i] - cl[int(ym[5:7]) - 1]))
+        lines.append('| %s | %s | %+.2f °C |' % (ym, ' | '.join(cells), na[i]))
+    # 화살표 지도 점검 그림
+    la, lo = w['lat'], w['lon']
+    cu, cv = C.climatology(w['u'], t), C.climatology(w['v'], t)
+    fig, axs = plt.subplots(2, 1, figsize=(10, 6.5))
+    for ax, (ttl, uu, vv) in zip(axs, [('DEC climatology 1991-2020', cu[11], cv[11]),
+                                         ('DEC 1997', w['u'][t.index('1997-12')], w['v'][t.index('1997-12')])]):
+        ax.quiver(lo[::2], la[::2], uu[::2, ::2], vv[::2, ::2], scale=150, width=0.0022)
+        ax.quiverkey(ax.quiver([], [], [], []) if False else ax.collections[0], 0.92, 1.04, 5, '5 m/s', labelpos='E')
+        for ring in LAND:
+            ax.plot(ring[0::2], ring[1::2], color='0.5', lw=0.5)
+        ax.set_xlim(100, 290)
+        ax.set_ylim(-30, 30)
+        ax.set_aspect('equal')
+        ax.set_title('NCEP/NCAR R1 10 m wind, ' + ttl, fontsize=9)
+    fig.tight_layout()
+    fig.savefig(os.path.join(VAL, 'wind_map_check.png'), dpi=110)
+    plt.close(fig)
+    i = t.index('1997-12')
+    j0, k0 = int(np.argmin(np.abs(la - 0.95))), int(np.argmin(np.abs(lo - 200.6)))
+    j1 = int(np.argmin(np.abs(la + 10.5)))
+    k1 = int(np.argmin(np.abs(lo - 249.4)))     # 110°W (남태평양 수렴대 SPCZ를 피한 동태평양)
+    j2 = int(np.argmin(np.abs(la - 12.4)))
+    checks = [('평년(12월) 적도 160°W 부근은 동풍(u<0)', cu[11][j0, k0] < 0, 'u=%.2f m/s' % cu[11][j0, k0]),
+              ('평년 남반구 10°S·110°W 부근은 남동 무역풍(u<0, v>0)', cu[11][j1, k1] < 0 and cv[11][j1, k1] > 0,
+               'u=%.2f, v=%.2f' % (cu[11][j1, k1], cv[11][j1, k1])),
+              ('평년 북반구 12°N·160°W 부근은 북동 무역풍(u<0, v<0)', cu[11][j2, k0] < 0 and cv[11][j2, k0] < 0,
+               'u=%.2f, v=%.2f' % (cu[11][j2, k0], cv[11][j2, k0])),
+              ('1997-12 중앙 태평양 지수: 평년보다 약하지만 여전히 동풍', -0 > w['idx_central'][i] > C.climatology(w['idx_central'], t)[11],
+               '%.2f m/s (평년 %.2f)' % (w['idx_central'][i], C.climatology(w['idx_central'], t)[11]))]
+    lines += ['', '### 4-4. 자동 점검', '']
+    for name, ok, info in checks:
+        lines.append('- %s %s %s' % ('✅' if ok else '❌', name, info))
+    lines.append('')
+
+
 def main():
     os.makedirs(VAL, exist_ok=True)
     lines = ['# 1단계 검증 보고서', '', '이 파일은 `pipeline/validate.py`가 만든다.', '']
@@ -218,6 +346,8 @@ def main():
     if C.load_work('godas') is not None:
         godas_check(lines)
         cpc_compare(lines)
+    if C.load_work('wind') is not None:
+        wind_check(lines)
     with open(os.path.join(VAL, 'REPORT.md'), 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines) + '\n')
     print('\n'.join(lines))

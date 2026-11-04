@@ -7,7 +7,7 @@
 | --- | --- | --- | --- | --- |
 | `ersst.py` | NOAA ERSST v5 해수면 온도, 2° | www.ncei.noaa.gov | °C | 관측 재구성 분석 |
 | `godas.py` | NCEP GODAS 잠재 수온, 경도 1° × 위도 1/3°, 40층 | downloads.psl.noaa.gov | K → °C | 해양 재분석 |
-| `era5.py` | ERA5 월평균 10 m 바람 u·v, 0.25° | NSF NCAR GDEX 사본 ds633.1(tds.gdex.ucar.edu, 2022년까지) + 그 뒤는 Copernicus CDS | m/s | 대기 재분석 |
+| `ncep_wind.py` | NCEP/NCAR Reanalysis 1 월평균 10 m 바람 u·v, T62 가우스 격자(1.875° × 약 1.9°) | downloads.psl.noaa.gov | m/s | 대기 재분석 |
 | `gpcp.py` | GPCP Monthly v2.3(v02r03) 강수, 2.5° | NOAA NODD AWS 사본(원본과 같은 파일) | mm/day → mm/월 | 위성·우량계 분석 |
 
 ```bash
@@ -23,19 +23,22 @@ python3 validate.py     # 1단계 검증: validation/REPORT.md와 그림
 - 강수: mm/day × 그 달의 실제 일수 = mm/월.
 - 수온 단면: 2°S~2°N 안의 GODAS 위도 격자(±0.17°, ±0.5°, … ±1.83°)를 먼저 위도 가중 평균한 뒤
   등온선과 편차를 계산한다. 범위 안 위도 중 하나라도 결측(육지)이면 그 칸은 결측.
-- 바람 지도: ERA5 0.25° 격자점 중 2° 간격 점의 값을 그대로 뽑는다(평균·보간 없음).
-  무역풍 지수는 0.25° 원자료 전체로 계산한 **이 프로젝트의 지역 평균값**이며 공식 기관 지수가 아니다.
+- 바람: 1991~2024 전 기간을 NCEP/NCAR Reanalysis 1 하나로 가공한다(ERA5와 섞지 않음). 지도에는 원자료 격자점 값을
+  그대로 쓴다(보간·평균 없음). 무역풍 지수는 5°S~5°N 격자의 10 m 동서 바람(u) 위도 가중 평균으로
+  **이 프로젝트가 직접 계산한 값**이며 공식 기관 지수가 아니다. 경도 범위는 NOAA CPC 850 hPa 무역풍 지수와 같다
+  (서 135°E~180°, 중앙 175°W~140°W, 동 135°W~120°W).
+- 검증용으로 같은 R1의 850 hPa 바람으로 CPC 무역풍 지수를 재현한다(`ncep_wind.run_850`).
 - Niño 3.4: ERSST v5, 5°S~5°N·170°W~120°W 위도 가중 평균의 1991~2020년 기준 편차.
 
 ## 받을 때 주의
 
-- NCAR 서버(tds.gdex.ucar.edu) 인증서는 emSign 루트를 쓴다. 운영 체제 인증서 목록이 오래되어 검증에 실패하면
-  최신 `certifi` 묶음을 `SSL_CERT_FILE`로 지정한다(검증을 끄지 않는다).
-- NCAR의 ERA5 월평균 사본은 2022년까지만 있다. 2023년 이후는 Copernicus CDS API 키(`~/.cdsapirc`)가 있어야 받으며,
-  키가 없으면 그 해는 값을 만들지 않고 결측('자료 없음')으로 둔다.
 - GODAS 원자료는 한 해에 약 100 MB라서 처리한 해는 지운다(`KEEP_RAW=1`이면 남김).
+- 검증용 R1 850 hPa 파일은 약 440 MB다.
+- ERA5(Copernicus CDS)는 쓰지 않는다. NCEP/NCAR 자료를 받을 수 없게 되면 다른 자료로 몰래 바꾸지 말고
+  CDS API(`reanalysis-era5-single-levels-monthly-means`)로 1991~2024 전 기간을 다시 가공한다.
 
 ## 검증 결과
 
 `validation/REPORT.md` 참고. Niño 3.4 편차는 NOAA CPC 공식 표와 408개월 모두 0.023 °C 이내로 일치하고,
 2023년 12월 적도 수온 편차 단면은 CPC 월간 해양 브리핑 그림과 같은 모습이다(`validation/compare_cpc_2023-12.png`).
+같은 R1 850 hPa 자료로 계산한 무역풍 지수는 CPC 공식 지수와 상관계수 0.998~0.9995로 일치한다.
