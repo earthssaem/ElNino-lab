@@ -185,7 +185,12 @@ main { display: flex; flex-direction: column; gap: 18px; padding-top: 16px; }
 .iso-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .iso-legend i { display: inline-block; width: 26px; height: 0; border-top: 2.6px solid var(--iso); }
 .iso-legend i.iso-dash { border-top: 2px dashed var(--iso); }
-@media (prefers-color-scheme: dark) { .iso-legend i { border-color: #e6ecf3; } }
+.iso-legend i.hatch-key {
+  width: 18px; height: 12px; border: 1px solid var(--muted); border-radius: 2px;
+  background: repeating-linear-gradient(-45deg, var(--ink-2) 0 1.2px, transparent 1.2px 5px);
+}
+.readout b.low { color: #b3541e; font-weight: 600; }
+@media (prefers-color-scheme: dark) { .iso-legend i { border-color: #e6ecf3; } .iso-legend i.hatch-key { border-color: var(--muted); } .readout b.low { color: #f0a36b; } }
 .legend-note { flex: 1 1 260px; margin: 0; font-size: 12px; color: var(--muted); padding-top: 14px; }
 
 .readout {

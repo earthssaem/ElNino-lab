@@ -53,6 +53,10 @@ def lon_label(x):
     return '%d°E' % x if x <= 180 else '%d°W' % (360 - x)
 
 
+def lon_label1(x):
+    return '%.1f°E' % x if x <= 180 else '%.1f°W' % (360 - x)
+
+
 def nino_check(lines):
     d = C.load_work('ersst')
     t = list(d['time'])
@@ -97,11 +101,28 @@ def godas_check(lines):
               '- 수심 층(≤%.0f m): %s' % (C.SEC_MAXDEPTH, ', '.join('%.0f' % x for x in depth)),
               '- 경도: %.1f ~ %.1f°E, %d개' % (lon[0], lon[-1], len(lon))]
     land = ~np.isfinite(sec).any(axis=(0, 1))                 # 모든 달·모든 층이 결측인 경도 = 육지
-    holes = [(t[i], int((~np.isfinite(sec[i][:, ~land])).sum())) for i in range(len(t))]
-    holes = [h for h in holes if h[1]]
-    lines += ['- 육지(항상 결측)로 빠지는 경도: %s' % ', '.join('%.1f' % x for x in lon[land]),
-              '- 바다인데 결측인 칸이 있는 달: %s (값을 채우지 않고 \'자료 없음\'으로 둠)'
-              % (', '.join('%s(%d칸)' % h for h in holes[:6]) + (' 외 %d개월' % (len(holes) - 6) if len(holes) > 6 else '') if holes else '없음')]
+    oc, cnt, nlat = g['ocean_count'], g['count'], len(g['lat_used'])
+    lines += ['- 위도 평균 규칙: 그 달·그 수심에서 값이 있는 해양 격자만 위도 가중 평균(육지 격자 제외). '
+              '유효 격자가 0개면 결측. 빠진 격자를 보간·생성하지 않음.',
+              '- 해양 격자가 하나도 없어 결측인 경도(표층 기준): %s' % ', '.join('%.1f' % x for x in lon[oc[0] == 0]), '']
+    # 경도별 해양 격자 수(표층·100 m·300 m)
+    zsel = [int(np.argmin(np.abs(depth - z))) for z in (5, 105, 303, 459)]
+    part = np.where(((oc > 0) & (oc < nlat)).any(axis=0))[0]
+    lines += ['### 해양 격자가 일부만 있는 경도 (평균에 쓴 위도 격자 수 / %d)' % nlat, '',
+              '| 경도 | ' + ' | '.join('%.0f m' % depth[k] for k in zsel) + ' | 대표성 |', '|---' * (len(zsel) + 2) + '|']
+    for i in part:
+        low = any(0 < oc[k, i] < C.SEC_MIN_OCEAN for k in zsel)
+        lines.append('| %s | %s | %s |' % (lon_label1(lon[i]),
+                     ' | '.join(str(int(oc[k, i])) for k in zsel), '낮음(%d개 미만 칸 있음)' % C.SEC_MIN_OCEAN if low else '보통'))
+    sporadic = (cnt < oc[None]) & (oc[None] > 0)
+    nsp = sporadic.reshape(len(t), -1).sum(axis=1)
+    lines += ['', '- 해양 격자인데 그 달 원자료가 결측이라 평균에서 빠진 경우: %d개월에서 모두 %d칸 (그 칸은 남은 격자로 평균, 남은 격자가 없으면 결측)'
+              % (int((nsp > 0).sum()), int(nsp.sum())),
+              '- 대표성 낮음 기준: 위도 격자 %d개 중 해양 격자가 %d개 미만인 칸(웹앱 단면에 빗금으로 표시)' % (nlat, C.SEC_MIN_OCEAN)]
+    st = g['section_strict']
+    both = np.isfinite(st) & np.isfinite(sec)
+    lines += ['- 이전 규칙과의 차이: 이전에도 값이 있던 칸의 최대 차이 %.2e °C (같은 칸은 값이 그대로), '
+              '이번에 새로 값이 생긴 칸 %d개(월×수심×경도 합계)' % (np.abs(st[both] - sec[both]).max(), int((np.isfinite(sec) & ~np.isfinite(st)).sum()))]
     cc = C.clim_count(sec, t)[:, :, ~land]
     lines += ['- 평년값: 30년이 모두 있는 칸 %.1f%%, 24~29년으로 계산한 칸 %d개, 24년 미만이라 평년값 결측인 칸 %d개'
               % (100.0 * (cc == 30).mean(), int(((cc >= 24) & (cc < 30)).sum()), int((cc < 24).sum())), '']
@@ -185,6 +206,57 @@ def godas_check(lines):
     return clim
 
 
+def before_after(lines):
+    """수정 전(위도 하나라도 결측이면 결측) ↔ 수정 후(유효 해양 격자만 평균) 단면 비교 그림."""
+    g = C.load_work('godas')
+    t = list(g['time'])
+    lon, depth, oc = g['lon'], g['depth'], g['ocean_count']
+    new, old = g['section'], g['section_strict']
+    cn, co = C.climatology(new, t), C.climatology(old, t)
+    lev = [-5, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 5]
+    cmapA = plt.get_cmap('RdBu_r', len(lev) - 1)
+    rows = [('2023-12', 'temp'), ('2023-12', 'anom'), ('1997-12', 'temp'), ('1997-12', 'anom')]
+    fig, axs = plt.subplots(len(rows), 2, figsize=(13, 2.7 * len(rows)))
+    low = (oc > 0) & (oc < C.SEC_MIN_OCEAN)
+    for r, (ym, kind) in enumerate(rows):
+        i, m = t.index(ym), int(ym[5:7]) - 1
+        for c, (name, sec, clim) in enumerate([('BEFORE (any missing lat -> missing)', old, co), ('AFTER (valid ocean cells only)', new, cn)]):
+            ax = axs[r, c]
+            ax.set_facecolor('0.55')
+            if kind == 'temp':
+                pc = ax.pcolormesh(lon, depth, np.ma.masked_invalid(sec[i]), cmap='turbo', vmin=8, vmax=31, shading='nearest')
+                ax.set_ylim(500, 0)
+            else:
+                pc = ax.pcolormesh(lon, depth, np.ma.masked_invalid(sec[i] - clim[m]), cmap=cmapA, norm=BoundaryNorm(lev, cmapA.N), shading='nearest')
+                ax.set_ylim(300, 0)
+            ax.plot(lon, iso_line(sec[i], depth), 'k-', lw=1.6)
+            ax.plot(lon, iso_line(clim[m], depth), 'k--', lw=1.1)
+            if c == 1:
+                ax.contourf(lon, depth, low.astype(float), levels=[0.5, 1.5], colors='none', hatches=['////'])
+            ax.set_xlim(120, 285)
+            ax.set_xticks(range(120, 286, 20))
+            ax.set_xticklabels([lon_label(x) for x in range(120, 286, 20)], fontsize=6.5)
+            ax.axvspan(130.5, 138.5, ymin=0, ymax=1, fill=False, ec='m', lw=1.2, ls=':')
+            ax.set_title('%s  %s  %s' % (ym, 'temperature' if kind == 'temp' else 'anomaly (clim 1991-2020)', name), fontsize=8)
+            fig.colorbar(pc, ax=ax, pad=0.01)
+    fig.suptitle('GODAS 2S-2N mean section: magenta box = 130.5-138.5E (north of New Guinea); hatch = fewer than %d of 12 latitude cells are ocean' % C.SEC_MIN_OCEAN, fontsize=9)
+    fig.tight_layout()
+    fig.savefig(os.path.join(VAL, 'section_before_after.png'), dpi=105)
+    plt.close(fig)
+    pts = [124.5, 128.5, 131.5, 133.5, 135.5, 137.5, 140.5]
+    lines += ['## 2-1. 뉴기니 북쪽 위도 평균 규칙 수정 전후', '',
+              '`section_before_after.png` — 왼쪽 수정 전, 오른쪽 수정 후(2023년 12월·1997년 12월, 실제 수온과 편차).', '',
+              '| 월 | 경도 | 해양 격자(표층) | 20 ℃ 등온선 수정 전 | 수정 후 | 같은 달 평년(수정 후) |', '| --- | --- | --- | --- | --- | --- |']
+    for ym in ['2023-12', '1997-12']:
+        i, m = t.index(ym), int(ym[5:7]) - 1
+        a, b, cc = iso_line(old[i], depth), iso_line(new[i], depth), iso_line(cn[m], depth)
+        for p in pts:
+            j = int(np.argmin(np.abs(lon - p)))
+            f = lambda v: '측정 불가' if not np.isfinite(v) else '%.0f m' % v
+            lines.append('| %s | %.1f°E | %d/12 | %s | %s | %s |' % (ym, lon[j], oc[0, j], f(a[j]), f(b[j]), f(cc[j])))
+    lines.append('')
+
+
 def cpc_compare(lines):
     """CPC 월간 해양 브리핑(2024년 1월호, 2023년 12월 GODAS 편차 단면, 1991~2020 평년)과 나란히 놓기."""
     pdf = os.path.join(C.RAW, 'cpc', 'global_ocean_monitoring_2024_01.pdf')
@@ -210,6 +282,8 @@ def cpc_compare(lines):
     ax.pcolormesh(lon, depth, np.ma.masked_invalid(an), cmap=cmap, norm=BoundaryNorm(lev, cmap.N), shading='nearest')
     cs = ax.contour(lon, depth, np.ma.masked_invalid(an), levels=[-2, 0, 1, 2, 4], colors='k', linewidths=0.6)
     ax.clabel(cs, fmt='%g', fontsize=7)
+    oc = g['ocean_count']
+    ax.contourf(lon, depth, ((oc > 0) & (oc < C.SEC_MIN_OCEAN)).astype(float), levels=[0.5, 1.5], colors='none', hatches=['////'])
     ax.set_xlim(112, 296)
     ax.set_ylim(300, 0)
     ax.set_xticks([120, 150, 180, 210, 240, 270])
@@ -345,6 +419,7 @@ def main():
     nino_check(lines)
     if C.load_work('godas') is not None:
         godas_check(lines)
+        before_after(lines)
         cpc_compare(lines)
     if C.load_work('wind') is not None:
         wind_check(lines)

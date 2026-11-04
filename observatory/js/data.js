@@ -72,6 +72,20 @@
     return (cache[key] = out);
   };
 
+  /* 단면 각 칸(수심×경도)의 위도 평균에 실제로 쓴 해양 격자 수(2°S~2°N 위도 격자 12개 중).
+     기본은 해양 격자 수이고, 그 달 원자료가 결측이라 빠진 칸만 사례 파일에 따로 적혀 있다. */
+  OBS.secCount = function (ym) {
+    var key = 'n|' + ym;
+    if (cache[key]) return cache[key];
+    var g = OBS.meta.grids.section, out = new Int8Array(g.ocean_count);
+    var c = OBS.cases[OBS.caseOf(ym)];
+    if (c && c.section_count_diff) {
+      (c.section_count_diff[c.months.indexOf(ym)] || []).forEach(function (d) { out[d[0]] = d[1]; });
+    }
+    return (cache[key] = out);
+  };
+  OBS.secLatTotal = function () { return OBS.meta.grids.section.lat.length; };
+
   /* 20 ℃ 등온선 깊이: 위에서부터 내려가며 수온이 20 ℃ 이상→미만으로 바뀌는 첫 두 층 사이를 선형 보간.
      결측 층을 먼저 만나거나 교차가 없으면 NaN(측정 불가). sec: [층][경도] 순서로 펼친 배열 */
   OBS.isoDepth = function (sec, col, target) {

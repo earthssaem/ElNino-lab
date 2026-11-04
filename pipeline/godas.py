@@ -8,9 +8,15 @@ NOAA PSL이 배포하는 netCDF 사본을 받는다.
 0~500 m에서 잠재 수온과 현장 수온의 차이는 0.1 °C보다 작아 화면에서는 '수온'으로 부른다.
 
 이 스크립트가 만드는 것(1991~2024 월별):
-  section : 2°S~2°N 범위 격자의 수온을 먼저 평균한 경도-수심 단면 (°C). 범위 안의 위도 중 하나라도
-            결측(육지)이면 그 칸은 결측으로 둔다.
-  hc300   : 5°S~5°N, 130°E~80°W, 0~300 m 평균 수온 (검증용 — NOAA CPC 열용량 지수와 비교)
+  section        : 2°S~2°N 범위 위도 격자(12개)의 수온을 먼저 위도 가중 평균한 경도-수심 단면 (°C).
+                   그 달·그 경도·그 수심에서 값이 있는 해양 격자만 평균한다(육지 격자는 빼고, 남은 해양
+                   격자의 실제 값은 그대로 씀). 유효한 격자가 하나도 없으면 결측. 빠진 격자를 보간하거나
+                   다른 값으로 채우지 않는다.
+  count          : 위 평균에 실제로 쓴 격자 수 (월, 수심, 경도), 0~12
+  ocean_count    : 1991~2024 중 한 번이라도 값이 있었던 격자 수 = 해양 격자 수 (수심, 경도), 0~12.
+                   12보다 작으면 그만큼 육지(또는 해저)가 섞인 위치다.
+  section_strict : 이전 규칙(위도 12개 중 하나라도 결측이면 결측)으로 만든 단면 — 비교·검증용
+  hc300          : 5°S~5°N, 130°E~80°W, 0~300 m 평균 수온 (검증용)
 """
 import os
 
@@ -33,7 +39,8 @@ def mean_0_300(prof, depth):
 
 
 def run(keep_raw=False):
-    tl, sec, hc = [], [], []
+    tl, sec, strict, cnt, hc = [], [], [], [], []
+    ever = None
     lon = depth = None
     for y in range(C.YEAR0, C.YEAR1 + 1):
         p = C.download(BASE % y, os.path.join(C.RAW, 'godas', 'pottmp.%d.nc' % y))
@@ -50,8 +57,15 @@ def run(keep_raw=False):
         assert len(times) == 12 and times[0] == '%d-01' % y, times
         # 2°S~2°N 평균 단면: 위도 가중 평균, 범위 안 위도 중 결측이 있으면 결측
         ss = (lab >= C.SEC_LAT[0] - 1e-6) & (lab <= C.SEC_LAT[1] + 1e-6)
-        w = np.cos(np.deg2rad(lab[ss]))
-        s = (sub[:, :, ss, :] * w[None, None, :, None]).sum(axis=2) / w.sum()   # (12, depth, lon)
+        w = np.cos(np.deg2rad(lab[ss]))[None, None, :, None]
+        band = sub[:, :, ss, :]                                   # (12, 수심, 위도, 경도)
+        ok = np.isfinite(band)
+        n = ok.sum(axis=2)                                        # 평균에 쓴 격자 수
+        with np.errstate(invalid='ignore', divide='ignore'):
+            s = np.where(ok, band * w, 0).sum(axis=2) / np.where(ok, w, 0).sum(axis=2)
+        s[n == 0] = np.nan                                        # 유효한 해양 격자가 없으면 결측
+        st = (band * w).sum(axis=2) / w.sum()                     # 이전 규칙(하나라도 결측이면 결측)
+        ever = ok.any(axis=0) if ever is None else (ever | ok.any(axis=0))
         # 5°S~5°N, 130°E~80°W, 0~300 m 평균(검증용)
         lsel = (lo[osel] >= 130) & (lo[osel] <= 280)
         wb = np.cos(np.deg2rad(lab))
@@ -60,6 +74,8 @@ def run(keep_raw=False):
         h = mean_0_300(bm, lev[zsel])
         tl += times
         sec.append(s)
+        strict.append(st)
+        cnt.append(n.astype('i1'))
         hc.append(h)
         if lon is None:
             lon, depth = lo[osel], lev[zsel]
@@ -67,9 +83,13 @@ def run(keep_raw=False):
         if not keep_raw:
             os.remove(p)   # 원자료가 커서(연 수백 MB) 처리한 해는 지운다
     sec = np.concatenate(sec)
-    C.save_work('godas', time=np.array(tl), lon=lon, depth=depth, section=sec, hc300=np.concatenate(hc),
+    ocean = ever.sum(axis=1).astype('i1')                         # (수심, 경도)
+    C.save_work('godas', time=np.array(tl), lon=lon, depth=depth, section=sec, count=np.concatenate(cnt),
+                ocean_count=ocean, section_strict=np.concatenate(strict), hc300=np.concatenate(hc),
                 lat_used=lab[ss])
     print('GODAS: %d개월, 단면 수심 %d층 × 경도 %d개, 단면 위도 %s' % (len(tl), len(depth), len(lon), np.round(lab[ss], 2)))
+    part = (ocean > 0) & (ocean < len(lab[ss]))
+    print('  해양 격자가 일부만 있는 칸 %d개, 해양 격자가 없는 칸 %d개' % (int(part.sum()), int((ocean == 0).sum())))
 
 
 if __name__ == '__main__':
