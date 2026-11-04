@@ -85,7 +85,7 @@
         <div class="arrow-legend" id="arrowLegend" role="img"></div>
         <p class="legend-note" id="mapNote"></p>
       </div>
-      <div class="readout" id="mapReadout" aria-live="polite">지도를 누르면 그 위치의 관측값을 보여 줍니다. 적도 부근을 누르면 아래 단면에도 같은 경도가 표시됩니다.</div>
+      <div class="readout" id="mapReadout" aria-live="polite">지도를 누르면 그 위치의 관측값을 보여 줍니다. 단면 영역(2°S~2°N, 점선 띠)을 누르면 아래 단면에도 같은 경도가 표시됩니다.</div>
     </section>
 
     <!-- 수온 단면 -->
@@ -117,6 +117,7 @@
           <span><i class="iso-solid"></i>20 ℃ 등온선 (그 달)</span>
           <span><i class="iso-dash"></i>같은 달 평년</span>
         </div>
+        <div class="iso-legend" id="hatchLegend"><span><i class="hatch-key"></i>해양 격자가 적어 대표성 낮음 (위도 격자 12개 중 6개 미만)</span></div>
         <p class="legend-note">색은 자료 격자(경도 1°, 자료 층) 사이를 선형 보간해 칠했습니다. 회색: 자료 없음(육지 등)</p>
       </div>
       <div class="readout" id="secReadout" aria-live="polite">단면을 누르면 그 경도의 20 ℃ 등온선 깊이를 잽니다. 단면을 고른 뒤 ←/→ 키로 1°씩 옮길 수 있습니다.</div>

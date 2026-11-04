@@ -193,13 +193,19 @@
     var g = OBS.meta.grids.section, c = state.col;
     var cur = OBS.isoLine(OBS.value('section', ym))[c], cl = OBS.isoLine(OBS.climOf('section', ym))[c];
     var diff = cur - cl, out = [];
+    var cnt = OBS.secCount(ym), tot = OBS.secLatTotal(), min = g.min_ocean, nx = g.lon.length;
+    var nTxt = function (k) {
+      var nn = cnt[k * nx + c];
+      return ' <span class="grid">(평균에 쓴 해양 격자 ' + nn + '/' + tot + (nn > 0 && nn < min ? ', <b class="low">대표성 낮음</b>' : '') + ')</span>';
+    };
     var d = (cur === cur && cl === cl) ? ' · 차이 <b>' + OBS.sign(diff, 0) + ' m</b> (' + (Math.abs(diff) < 0.5 ? '같음' : diff > 0 ? '평년보다 깊음' : '평년보다 얕음') + ')' : ' · 차이 측정 불가';
-    out.push('<span class="rk">20 ℃ 등온선</span> 그 달 <b>' + depthText(cur) + '</b> · 같은 달 평년 <b>' + depthText(cl) + '</b>' + d);
+    out.push('<span class="rk">20 ℃ 등온선</span> 그 달 <b>' + depthText(cur) + '</b>' + (cur === cur ? nTxt(OBS.nearest(g.depth, cur)) : '') +
+      ' · 같은 달 평년 <b>' + depthText(cl) + '</b>' + d);
     if (state.clickDepth !== null) {
       var k = OBS.nearest(g.depth, state.clickDepth), n = g.lon.length;
       var v = OBS.value('section', ym)[k * n + c], a = OBS.anom('section', ym)[k * n + c];
       out.push('<span class="rk">누른 곳</span> 가장 가까운 자료 층 ' + Math.round(g.depth[k]) + ' m: ' +
-        (v !== v ? '<span class="na">자료 없음</span>' : '<b>' + v.toFixed(1) + ' °C</b>, 편차 ' + (a !== a ? '자료 없음' : '<b>' + OBS.sign(a, 1) + ' °C</b>')));
+        (v !== v ? '<span class="na">자료 없음</span>' : '<b>' + v.toFixed(1) + ' °C</b>, 편차 ' + (a !== a ? '자료 없음' : '<b>' + OBS.sign(a, 1) + ' °C</b>')) + nTxt(k));
     }
     return { html: out, cur: cur };
   }
@@ -282,7 +288,8 @@
     if (!p) return;
     state.click = { lon: p.lon, lat: p.lat };
     var g = OBS.meta.grids.section;
-    if (Math.abs(p.lat) <= 5 && p.lon >= g.lon[0] - 0.5 && p.lon <= g.lon[g.lon.length - 1] + 0.5) {
+    var band = OBS.meta.regions.section.lat;     // 단면 평균 범위(2°S~2°N) 안을 눌렀을 때만 단면과 연동
+    if (p.lat >= band[0] && p.lat <= band[1] && p.lon >= g.lon[0] - 0.5 && p.lon <= g.lon[g.lon.length - 1] + 0.5) {
       state.col = OBS.nearest(g.lon, p.lon);
       state.clickDepth = null;
     }
@@ -411,7 +418,7 @@
       '자료 생성일 ' + m.generated + ', 가공 기간 ' + m.period[0] + ' ~ ' + m.period[1] + '.</p>' +
       '<div class="table-wrap"><table><thead><tr><th>화면 요소</th><th>자료</th><th>종류</th><th>해상도</th><th>단위·처리</th></tr></thead><tbody>' +
       '<tr><td>해수면 온도 지도, Niño 3.4</td><td><a href="https://www.ncei.noaa.gov/products/extended-reconstructed-sst" target="_blank" rel="noopener">NOAA ERSST v5</a> (NCEI) 변수 sst</td><td>선박·부이 관측을 통계적으로 재구성한 분석 자료</td><td>2° × 2°, 월평균</td><td>°C. 파일의 1971~2000 기준 편차(ssta)는 쓰지 않음</td></tr>' +
-      '<tr><td>수온 단면, 20 ℃ 등온선</td><td><a href="https://www.cpc.ncep.noaa.gov/products/GODAS/" target="_blank" rel="noopener">NCEP GODAS</a> (NOAA PSL 배포본) 변수 pottmp</td><td>해양 관측을 해양 모형에 동화한 해양 재분석</td><td>경도 1° × 위도 1/3°, 수심 층 5~225 m는 10 m 간격(그 아래 238, 262, 303, 366, 459, 584 m), 월평균</td><td>K → °C. 잠재 수온(0~500 m에서 현장 수온과 0.1 °C 미만 차이). 2°S~2°N 위도 격자 12개를 먼저 평균한 뒤 등온선·편차 계산</td></tr>' +
+      '<tr><td>수온 단면, 20 ℃ 등온선</td><td><a href="https://www.cpc.ncep.noaa.gov/products/GODAS/" target="_blank" rel="noopener">NCEP GODAS</a> (NOAA PSL 배포본) 변수 pottmp</td><td>해양 관측을 해양 모형에 동화한 해양 재분석</td><td>경도 1° × 위도 1/3°, 수심 층 5~225 m는 10 m 간격(그 아래 238, 262, 303, 366, 459, 584 m), 월평균</td><td>K → °C. 잠재 수온(0~500 m에서 현장 수온과 0.1 °C 미만 차이). 2°S~2°N 위도 격자 12개 중 값이 있는 해양 격자만 먼저 위도 평균한 뒤 등온선·편차 계산</td></tr>' +
       '<tr><td>바람 화살표, 무역풍 그래프</td><td><a href="https://psl.noaa.gov/data/gridded/data.ncep.reanalysis.html" target="_blank" rel="noopener">NCEP/NCAR Reanalysis 1</a> (NOAA PSL) 10 m uwnd·vwnd</td><td>대기 관측을 모형에 동화한 대기 재분석</td><td>T62 가우스 격자(경도 1.875° × 위도 약 1.9°), 월평균</td><td>m/s. 1991~2024 전 기간 이 자료 하나만 사용(다른 재분석과 섞지 않음)</td></tr>' +
       '<tr><td>강수량 지도</td><td><a href="https://www.ncei.noaa.gov/products/climate-data-records/precipitation-gpcp-monthly" target="_blank" rel="noopener">GPCP Monthly v2.3</a> (NOAA CDR, 파일 버전 v02r03)</td><td>위성·우량계 관측을 합친 분석 자료</td><td>2.5° × 2.5°, 월평균</td><td>원자료 mm/일 × 그 달 실제 일수 = mm/월</td></tr>' +
       '</tbody></table></div>' +
@@ -419,11 +426,13 @@
       '<li><b>Niño 3.4 편차</b>: ERSST v5의 5°S~5°N, 170°W~120°W 위도 가중 평균에서 같은 달 1991~2020 평년값을 뺀 값. NOAA CPC 공식 값과 1991~2024년 408개월 모두 0.03 °C 이내로 일치함을 확인했습니다.</li>' +
       '<li><b>무역풍 지역 평균</b>: R1 10 m 동서 바람 u를 5°S~5°N 격자에서 위도 가중 평균(이 웹앱이 직접 계산). 서태평양 135°E~180°, 중앙 태평양 175°W~140°W, 동태평양 135°W~120°W로 NOAA CPC 850 hPa 무역풍 지수와 경도 범위가 같지만 고도가 다릅니다(편차 상관계수 0.73~0.96).</li>' +
       '<li><b>20 ℃ 등온선 깊이</b>: 단면의 각 경도에서 위로부터 수온이 20 ℃ 이상에서 미만으로 바뀌는 첫 두 자료 층 사이를 선형 보간. 결측 층을 먼저 만나거나 20 ℃를 지나지 않으면 "측정 불가".</li>' +
+      '<li><b>단면 위도 평균</b>: 각 경도·수심에서 2°S~2°N 위도 격자 12개 중 그 달 값이 있는 해양 격자만 위도 가중 평균합니다. 육지 격자는 빼고, 빠진 격자를 보간하거나 채우지 않습니다. 해양 격자가 하나도 없으면 회색(자료 없음), 12개 중 6개 미만이면 대표성이 낮다는 뜻으로 빗금을 칩니다(뉴기니 북쪽, 남아메리카 해안 등).</li>' +
       '<li><b>평년값</b>: 1991~2020년 같은 달 평균. 원자료의 결측은 채우지 않으며, 30년 중 24년 이상 자료가 있는 칸만 평년값을 만듭니다(WMO 평년값 기준).</li>' +
       '<li><b>지도 클릭</b>: 해수면 온도·강수량은 누른 곳이 들어 있는 격자 칸의 값, 바람은 가장 가까운 R1 격자점의 값을 보간 없이 보여 줍니다.</li>' +
       '</ul>' +
       '<h3>한계와 주의</h3><ul>' +
       '<li>수온 단면은 적도 부근 <b>2°S~2°N을 평균</b>한 경도-수심 단면입니다. 페루 연안의 실제 수직 단면이 아닙니다.</li>' +
+      '<li>빗금 친 칸은 2°S~2°N 중 일부 위도(해양 격자 6개 미만)만으로 평균한 값이라 띠 전체를 대표하지 못할 수 있습니다.</li>' +
       '<li>20 ℃ 등온선은 수온약층 깊이의 <b>대표 지표</b>이며 수온약층 전체와 같지 않습니다.</li>' +
       '<li>지도의 해수면 온도(ERSST)와 단면 맨 위 층 수온(GODAS 5 m)은 서로 다른 자료라서 같은 곳이라도 값이 조금 다를 수 있습니다. 억지로 맞추지 않았습니다.</li>' +
       '<li>단면 색은 자료 격자 사이를 선형 보간해 칠한 것으로, 원자료보다 해상도가 높은 관측값이 아닙니다. 오른쪽 눈금이 실제 자료 층입니다.</li>' +
@@ -439,7 +448,7 @@
     stop();
     if (state.compare) setCompare(false);
     state.click = null; state.col = null; state.clickDepth = null;
-    $('mapReadout').textContent = '지도를 누르면 그 위치의 관측값을 보여 줍니다. 적도 부근을 누르면 아래 단면에도 같은 경도가 표시됩니다.';
+    $('mapReadout').textContent = '지도를 누르면 그 위치의 관측값을 보여 줍니다. 단면 영역(2°S~2°N, 점선 띠)을 누르면 아래 단면에도 같은 경도가 표시됩니다.';
     $('secReadout').textContent = '단면을 누르면 그 경도의 20 ℃ 등온선 깊이를 잽니다. 단면을 고른 뒤 ←/→ 키로 1°씩 옮길 수 있습니다.';
     window.scrollTo(0, 0);
     setCase(DEFAULT.caseId);

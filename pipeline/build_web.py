@@ -46,6 +46,11 @@ def main():
     for c in C.CASES:
         ms = [m for m in t if c['start'] <= m <= c['end']]
         idx = [t.index(m) for m in ms]
+        oc = gd['ocean_count'].ravel()
+        cdiff = []          # 평균에 쓴 격자 수가 해양 격자 수와 다른 칸(원자료 결측)만 [칸 번호, 격자 수]로
+        for i in idx:
+            cn = gd['count'][i].ravel()
+            cdiff.append([[int(k), int(cn[k])] for k in np.where(cn != oc)[0]])
         C.write_json('case-%s.json' % c['id'], {
             'id': c['id'], 'months': ms,
             'sst': [C.ints(sst['sst'][i], SCALE['sst']) for i in idx],
@@ -53,6 +58,7 @@ def main():
             'u': [C.ints(wd['u'][i], SCALE['wind']) for i in idx],
             'v': [C.ints(wd['v'][i], SCALE['wind']) for i in idx],
             'section': [C.ints(gd['section'][i], SCALE['section']) for i in idx],
+            'section_count_diff': cdiff,
         })
         cases.append(dict(c, months=ms))
 
@@ -71,7 +77,8 @@ def main():
             'sst': {'lat': r(sst['lat']), 'lon': r(sst['lon']), 'res': '2° × 2°'},
             'precip': {'lat': r(pr['lat']), 'lon': r(pr['lon']), 'res': '2.5° × 2.5°'},
             'wind': {'lat': r(wd['lat'], 3), 'lon': r(wd['lon'], 3), 'res': 'T62 가우스 격자(경도 1.875° × 위도 약 1.9°)'},
-            'section': {'lon': r(gd['lon']), 'depth': r(gd['depth'], 1), 'lat': r(gd['lat_used'], 2)},
+            'section': {'lon': r(gd['lon']), 'depth': r(gd['depth'], 1), 'lat': r(gd['lat_used'], 2),
+                        'ocean_count': [int(x) for x in gd['ocean_count'].ravel()], 'min_ocean': C.SEC_MIN_OCEAN},
         },
         'regions': {'nino34': C.NINO34, 'wind': C.WIND_REGIONS, 'section': {'lat': C.SEC_LAT}},
     }

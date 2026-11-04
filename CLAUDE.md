@@ -70,5 +70,7 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 - 자료 다시 만들기: `cd pipeline && ./run_all.sh` (원자료는 `pipeline/raw/`, 중간 자료는 `pipeline/work/`, 둘 다 저장소에 넣지 않음). 검증 결과 `pipeline/validation/REPORT.md`도 함께 갱신해 커밋한다.
 - 화면 코드: `observatory/js/` — `data.js`(window.OBS, 자료·편차·20 ℃ 등온선) → `colors.js`(고정 색 범위) → `map.js` / `section.js` / `series.js` → `app.js`. 지도 해안선은 루트의 `js/land.js`를 쓴다. ES5 문법 유지.
 - `fetch`로 자료를 읽으므로 브라우저 확인은 반드시 로컬 서버로 한다. 같은 Playwright 점검(화면 크기 5종, 밝은·어두운 테마, 콘솔 오류·404·가로 넘침)을 `observatory/`에도 한다.
+- 단면 위도 평균은 2°S~2°N 위도 격자 12개 중 값이 있는 해양 격자만 쓴다(유효 0개면 결측, 보간·생성 금지). 해양 격자 수는 `meta.grids.section.ocean_count`, 그 달 원자료 결측으로 달라진 칸은 사례 파일 `section_count_diff`에 있고 `OBS.secCount(ym)`로 읽는다. 6개 미만 칸은 빗금(대표성 낮음).
+- 지도 클릭은 단면 평균 범위(2°S~2°N, `meta.regions.section.lat`) 안일 때만 단면 경도와 연동한다.
 - 과학적 표기 원칙: 단면은 2°S~2°N 평균(페루 연안 단면 아님), 20 ℃ 등온선은 수온약층의 대표 지표(같지 않음), 무역풍 지역 평균은 이 앱의 계산값(공식 지수 아님), 단면 색은 격자 사이 선형 보간.
-- 검사: 위 eslint 명령에 `observatory/js/*.js`와 전역 `fetch,Promise,Float32Array,Int16Array,OBS,OBSColor,OBSMap,OBSSection,OBSSeries,setInterval,clearInterval,setTimeout`을 더한다.
+- 검사: 위 eslint 명령에 `observatory/js/*.js`와 전역 `fetch,Promise,Float32Array,Int16Array,Int8Array,OBS,OBSColor,OBSMap,OBSSection,OBSSeries,setInterval,clearInterval,setTimeout`을 더한다.

@@ -2,6 +2,7 @@
    - GODAS 2°S~2°N 평균 수온(파이프라인에서 위도 평균을 먼저 한 값). 가로 경도(왼쪽 서태평양), 세로 수심 0~500 m.
    - 색은 격자값(경도 1°, 수심 층) 사이를 선형 보간해 칠한다. 자료가 없는 칸(육지 등)은 회색.
      GODAS 맨 위 층(5 m)은 0~10 m 층의 값이므로 해면까지 그 값으로 칠한다.
+   - 위도 평균은 그 칸에서 값이 있는 해양 격자만 쓴다. 해양 격자가 기준(min_ocean)보다 적은 칸은 빗금으로 표시한다.
    - 20 ℃ 등온선: 실선 = 그 달, 점선 = 같은 달 1991~2020년 평년. 두 층 사이 선형 보간으로 계산(OBS.isoDepth). */
 (function () {
   'use strict';
@@ -72,6 +73,36 @@
       return (cache[key] = off);
     }
 
+    var hatchPat = null;
+    function hatch() {
+      if (hatchPat) return hatchPat;
+      var p = document.createElement('canvas');
+      p.width = p.height = 8;
+      var pc = p.getContext('2d');
+      pc.strokeStyle = 'rgba(10,18,32,.75)'; pc.lineWidth = 1.2;
+      pc.beginPath(); pc.moveTo(-2, 10); pc.lineTo(10, -2); pc.moveTo(6, 10); pc.lineTo(10, 6); pc.moveTo(-2, 2); pc.lineTo(2, -2); pc.stroke();
+      return (hatchPat = ctx.createPattern(p, 'repeat'));
+    }
+
+    /* 해양 격자가 적어 대표성이 낮은 칸: 칸 경계(경도 ±0.5°, 위아래 층과의 중간 깊이)를 빗금으로 */
+    function drawLowRep(ym) {
+      var g = OBS.meta.grids.section, nx = g.lon.length, dep = g.depth, n = OBS.secCount(ym), min = g.min_ocean;
+      ctx.save();
+      ctx.fillStyle = hatch();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.beginPath();
+      for (var k = 0; k < dep.length; k++) {
+        var z0 = k === 0 ? 0 : (dep[k - 1] + dep[k]) / 2, z1 = k === dep.length - 1 ? dep[k] : (dep[k] + dep[k + 1]) / 2;
+        if (z0 >= ZMAX) break;
+        for (var i = 0; i < nx; i++) {
+          var c = n[k * nx + i];
+          if (c > 0 && c < min) ctx.rect(X(g.lon[i] - 0.5), Y(z0), X(g.lon[i] + 0.5) - X(g.lon[i] - 0.5), Y(Math.min(z1, ZMAX)) - Y(z0));
+        }
+      }
+      ctx.fill();
+      ctx.restore();
+    }
+
     function isoPath(line, lons) {
       ctx.beginPath();
       var pen = false;
@@ -94,6 +125,8 @@
       ctx.fillStyle = css('--nodata'); ctx.fillRect(M.l, M.t, pw, ph);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(image(st.mode, st.ym), M.l, M.t, pw, ph);
+
+      drawLowRep(st.ym);
 
       // 수심 100 m 간격 안내선
       ctx.strokeStyle = 'rgba(20,30,50,.16)'; ctx.lineWidth = 0.6; ctx.beginPath();
