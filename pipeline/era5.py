@@ -20,7 +20,7 @@ import xarray as xr
 
 import common as C
 
-HOSTS = ['https://tds.gdex.ucar.edu/thredds/fileServer/files/g/d633001_nc/e5.moda.an.sfc',
+HOSTS = ['https://tds.gdex.ucar.edu/thredds/fileServer/files/g/d633001/e5.moda.an.sfc',
          'https://thredds.rda.ucar.edu/thredds/fileServer/files/g/d633001_nc/e5.moda.an.sfc']
 CODES = {'u': '128_165_10u', 'v': '128_166_10v'}
 
@@ -37,19 +37,25 @@ def fetch_year_ncar(y, comp):
     raise last
 
 
-def fetch_cds():
+def fetch_cds(years):
+    """Copernicus CDS API(공식 배포처)에서 해당 연도 월평균을 받는다. ~/.cdsapirc 또는
+    CDSAPI_URL·CDSAPI_KEY 환경 변수가 필요하다."""
     import cdsapi  # noqa: PLC0415
-    dest = os.path.join(C.RAW, 'era5', 'era5_moda_10m_wind_pacific_%d_%d.nc' % (C.YEAR0, C.YEAR1))
+    dest = os.path.join(C.RAW, 'era5', 'cds_era5_moda_10m_wind_%d_%d.nc' % (years[0], years[-1]))
     if not os.path.exists(dest):
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         cdsapi.Client().retrieve('reanalysis-era5-single-levels-monthly-means', {
             'product_type': ['monthly_averaged_reanalysis'],
             'variable': ['10m_u_component_of_wind', '10m_v_component_of_wind'],
-            'year': [str(y) for y in range(C.YEAR0, C.YEAR1 + 1)],
+            'year': [str(y) for y in years],
             'month': ['%02d' % m for m in range(1, 13)], 'time': ['00:00'],
             'area': [31, 99, -31, -69], 'data_format': 'netcdf', 'download_format': 'unarchived',
         }, dest)
     return dest
+
+
+def has_cds():
+    return os.path.exists(os.path.expanduser('~/.cdsapirc')) or bool(os.environ.get('CDSAPI_KEY'))
 
 
 def pick(d, names):
@@ -82,32 +88,53 @@ def process(u, v):
     return tl, tla, tlo, uu[:, ia][:, :, io], vv[:, ia][:, :, io], idx
 
 
+def empty_year(y, like):
+    """자료를 구하지 못한 해: 값을 만들지 않고 결측(NaN)으로 둔다."""
+    tl = ['%d-%02d' % (y, m) for m in range(1, 13)]
+    nan = np.full((12,) + like[3].shape[1:], np.nan)
+    return tl, like[1], like[2], nan, nan.copy(), {k: np.full(12, np.nan) for k in like[5]}
+
+
 def run():
-    parts = []
-    if os.path.exists(os.path.expanduser('~/.cdsapirc')) or os.environ.get('CDSAPI_KEY'):
-        p = fetch_cds()
-        with xr.open_dataset(p) as d:
-            parts.append(process(norm(pick(d, ['u10'])).load(), norm(pick(d, ['v10'])).load()))
-        source = 'Copernicus CDS'
-    else:
-        for y in range(C.YEAR0, C.YEAR1 + 1):
+    parts, src, missing = {}, {}, []
+    box = dict(lat=slice(-31, 31), lon=slice(99, 291))
+    for y in range(C.YEAR0, C.YEAR1 + 1):
+        try:
             pu, pv = fetch_year_ncar(y, 'u'), fetch_year_ncar(y, 'v')
-            with xr.open_dataset(pu) as du, xr.open_dataset(pv) as dv:
-                u = norm(pick(du, ['VAR_10U', 'u10']))
-                v = norm(pick(dv, ['VAR_10V', 'v10']))
-                box = dict(lat=slice(-31, 31), lon=slice(99, 291))
-                parts.append(process(u.sel(**box).load(), v.sel(**box).load()))
-            print('  ERA5 %d 처리' % y)
-        source = 'NSF NCAR RDA/GDEX ds633.1'
-    tl = sum([p[0] for p in parts], [])
+        except RuntimeError:
+            missing.append(y)
+            continue
+        with xr.open_dataset(pu) as du, xr.open_dataset(pv) as dv:
+            u = norm(pick(du, ['VAR_10U', 'u10']))
+            v = norm(pick(dv, ['VAR_10V', 'v10']))
+            parts[y] = process(u.sel(**box).load(), v.sel(**box).load())
+        src[y] = 'NCAR ds633.1'
+        print('  ERA5 %d 처리 (NCAR)' % y)
+    if missing and has_cds():
+        p = fetch_cds(missing)
+        with xr.open_dataset(p) as d:
+            u, v = norm(pick(d, ['u10'])).load(), norm(pick(d, ['v10'])).load()
+        for y in missing:
+            sel = dict(time=slice('%d-01-01' % y, '%d-12-31' % y))
+            parts[y] = process(u.sel(**sel), v.sel(**sel))
+            src[y] = 'Copernicus CDS'
+            print('  ERA5 %d 처리 (CDS)' % y)
+    like = next(iter(parts.values()))
+    for y in range(C.YEAR0, C.YEAR1 + 1):
+        if y not in parts:
+            parts[y] = empty_year(y, like)
+            src[y] = '자료 없음'
+            print('  ERA5 %d: 받을 수 있는 곳이 없어 결측으로 둠' % y)
+    order = [parts[y] for y in range(C.YEAR0, C.YEAR1 + 1)]
+    tl = sum([p[0] for p in order], [])
     assert tl == C.months(), '월 순서가 맞지 않습니다'
-    out = dict(time=np.array(tl), lat=parts[0][1], lon=parts[0][2],
-               u=np.concatenate([p[3] for p in parts]), v=np.concatenate([p[4] for p in parts]),
-               source=np.array(source))
+    out = dict(time=np.array(tl), lat=like[1], lon=like[2],
+               u=np.concatenate([p[3] for p in order]), v=np.concatenate([p[4] for p in order]),
+               source_by_year=np.array(['%d:%s' % (y, src[y]) for y in sorted(src)]))
     for r in C.WIND_REGIONS:
-        out['idx_' + r['id']] = np.concatenate([p[5][r['id']] for p in parts])
+        out['idx_' + r['id']] = np.concatenate([p[5][r['id']] for p in order])
     C.save_work('era5', **out)
-    print('ERA5(%s): %d개월' % (source, len(tl)))
+    print('ERA5: %d개월, 결측 연도 %s' % (len(tl), [y for y in src if src[y] == '자료 없음']))
 
 
 if __name__ == '__main__':

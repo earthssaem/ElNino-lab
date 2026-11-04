@@ -56,9 +56,13 @@ def days_in_month(ym):
     return calendar.monthrange(y, m)[1]
 
 
-def climatology(values, month_list):
+MIN_CLIM_YEARS = 24   # 30년 중 80% 이상 (WMO 기후 평년값 지침의 결측 허용 기준)
+
+
+def climatology(values, month_list, min_years=MIN_CLIM_YEARS):
     """values: (시간, ...) 배열. 1991~2020년 같은 달 평균 (12, ...).
-    결측(NaN)은 다른 숫자로 채우지 않는다. 30년 중 한 해라도 결측이면 평년값도 결측으로 둔다."""
+    결측(NaN)은 다른 숫자로 채우지 않는다. 결측이 아닌 해만 평균하되, 30년 중 min_years년 이상
+    자료가 있어야 평년값을 만들고 그보다 적으면 평년값도 결측으로 둔다."""
     yrs = np.array([int(t[:4]) for t in month_list])
     mon = np.array([int(t[5:7]) for t in month_list])
     out = []
@@ -67,9 +71,19 @@ def climatology(values, month_list):
         n = int(sel.sum())
         if n != CLIM1 - CLIM0 + 1:
             raise RuntimeError('평년 계산에 필요한 %d월 자료가 %d개뿐입니다' % (m, n))
+        v = values[sel]
+        cnt = np.isfinite(v).sum(axis=0)
         with np.errstate(invalid='ignore'):
-            out.append(values[sel].mean(axis=0))   # NaN이 하나라도 있으면 NaN
+            mean = np.nansum(v, axis=0) / cnt
+        out.append(np.where(cnt >= min_years, mean, np.nan))
     return np.array(out)
+
+
+def clim_count(values, month_list):
+    """평년 계산에 쓴 해의 수 (12, ...) — 문서화용."""
+    yrs = np.array([int(t[:4]) for t in month_list])
+    mon = np.array([int(t[5:7]) for t in month_list])
+    return np.array([np.isfinite(values[(mon == m) & (yrs >= CLIM0) & (yrs <= CLIM1)]).sum(axis=0) for m in range(1, 13)])
 
 
 def area_mean(field, lat, lon, latr, lonr, require_all=True):
