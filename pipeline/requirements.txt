@@ -1,0 +1,5 @@
+numpy
+xarray
+netCDF4
+matplotlib
+pypdfium2  # 검증 그림에서 CPC 브리핑 PDF를 읽을 때

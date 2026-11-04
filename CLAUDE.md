@@ -11,6 +11,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
+저장소에 웹앱이 두 개 있다. 루트(`/`)는 아래에 설명한 개념 시뮬레이터, `observatory/`는 실제 관측·재분석 자료를 보여 주는 「엘니뇨 실측자료 탐구실」이다(아래 「실측자료 탐구실」 절).
+
 지구과학Ⅰ 「대기와 해양의 상호 작용」(엘니뇨·라니냐, 남방진동) 수업용 정적 웹앱이다. 빌드 도구, 패키지, 테스트 코드가 없고 `index.html`을 브라우저로 열면 바로 동작한다. 글은 최소로 하고 모식도와 조작 위주로 만든다. 용어는 교과서 용어(수온 약층, 혼합층, 용승, 엘니뇨 감시 구역, 남방진동 지수, 워커 순환)를 따른다.
 
 ## 명령
@@ -59,3 +61,14 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 
 - 기존 코드처럼 ES5 문법(`var`, `function`, 즉시 실행 함수 + `'use strict'`)을 유지한다. 빌드 단계가 없다.
 - 접근성: 모든 조작은 키보드로도 되어야 한다(탭 ←/→, 슬라이더, ③ 그래프의 ←/→·PageUp/PageDown·Home/End). 상태가 바뀌면 캔버스의 `aria-label`도 갱신한다. 운영 체제의 '동작 줄이기'가 켜져 있으면 각 탭의 '움직임'이 꺼진 채 시작한다.
+
+## 실측자료 탐구실 (`observatory/`, `pipeline/`)
+
+- 통합과학2용. 화면의 모든 값은 `pipeline/`이 공식 원자료(ERSST v5, GODAS, NCEP/NCAR Reanalysis 1 10 m 바람, GPCP v2.3)로 만든 `observatory/data/*.json`이다. **임의로 만든 값·채운 결측을 절대 넣지 않는다.** 자료가 없으면 '자료 없음'으로 표시한다.
+- 무역풍은 1991~2024 전 기간 NCEP/NCAR R1 하나로 가공한다. 다른 재분석(ERA5 등)과 시기별로 섞지 않는다. R1을 못 쓰게 되면 몰래 바꾸지 말고 사용자에게 Copernicus CDS 사용을 제안한다.
+- 평년은 1991~2020 같은 달 평균을 직접 계산(30년 중 24년 이상 있는 칸만). 편차는 웹앱이 '실제 값 − 평년값'으로 계산한다.
+- 자료 다시 만들기: `cd pipeline && ./run_all.sh` (원자료는 `pipeline/raw/`, 중간 자료는 `pipeline/work/`, 둘 다 저장소에 넣지 않음). 검증 결과 `pipeline/validation/REPORT.md`도 함께 갱신해 커밋한다.
+- 화면 코드: `observatory/js/` — `data.js`(window.OBS, 자료·편차·20 ℃ 등온선) → `colors.js`(고정 색 범위) → `map.js` / `section.js` / `series.js` → `app.js`. 지도 해안선은 루트의 `js/land.js`를 쓴다. ES5 문법 유지.
+- `fetch`로 자료를 읽으므로 브라우저 확인은 반드시 로컬 서버로 한다. 같은 Playwright 점검(화면 크기 5종, 밝은·어두운 테마, 콘솔 오류·404·가로 넘침)을 `observatory/`에도 한다.
+- 과학적 표기 원칙: 단면은 2°S~2°N 평균(페루 연안 단면 아님), 20 ℃ 등온선은 수온약층의 대표 지표(같지 않음), 무역풍 지역 평균은 이 앱의 계산값(공식 지수 아님), 단면 색은 격자 사이 선형 보간.
+- 검사: 위 eslint 명령에 `observatory/js/*.js`와 전역 `fetch,Promise,Float32Array,Int16Array,OBS,OBSColor,OBSMap,OBSSection,OBSSeries,setInterval,clearInterval,setTimeout`을 더한다.
