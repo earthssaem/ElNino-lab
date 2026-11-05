@@ -8,4 +8,5 @@ python3 godas.py
 python3 ncep_wind.py
 python3 enso_record.py
 python3 build_web.py
+python3 build_sim.py
 python3 validate.py

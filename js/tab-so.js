@@ -1,4 +1,6 @@
-/* ③ 남방진동: 워커 순환 지도 + 다윈·타히티 기압 시소 + 모식 시계열 */
+/* ③ 남방진동: 워커 순환 지도 + 다윈·타히티 기압 시소 + 실측 시계열(1991~2024)
+ * 시계열: 엘니뇨 감시 구역 수온 편차(ERSST v5), 남방진동 지수(NOAA CPC, 표준화), 다윈·타히티 기압 편차(NOAA CPC, 1991~2020 평년 대비),
+ * 음영은 NOAA CPC 공식 판정(RONI). 그래프의 한 달을 고르면 그 달의 Niño 3.4 편차로 지도의 상태 s 를 정하고, 기압 시소는 그 달의 실제 기압 편차를 쓴다. */
 (function () {
   'use strict';
   var E = window.ENSO, D = window.ENSODraw;
@@ -13,7 +15,9 @@
   var stage, cv, ctx, badge;
   var W = 0, H = 0, dpr = 1, proj = null;
   var flat = null, flatS = null, flatTheme = -1;
-  var s = 0, target = null, playing = false, tYears = 0;
+  var s = 0, target = null, playing = false, tMon = 0;
+  var MON = E.OBS.monthly, NM = MON.nino34.length;
+  var real = null;   // 그래프에서 고른 달의 실제 기압·지수 {darwin, tahiti, soi, state}. 상태 버튼을 누르면 null(모형 합성값)
   var time = 0, dirty = true, visible = false, themeTick = 0;
   var motion = true;
   var seesaw = {}, chart = {};
@@ -39,6 +43,7 @@
     ['so-normal', 'so-nino', 'so-nina'].forEach(function (id) {
       $(id).addEventListener('click', function () {
         setPlaying(false);
+        real = null;
         target = parseFloat($(id).getAttribute('data-s'));
         if (!motion) { s = target; target = null; }
         pressButtons(id);
@@ -61,7 +66,7 @@
     playing = on;
     $('so-play').setAttribute('aria-pressed', on);
     $('so-play').querySelector('span').textContent = on ? '일시 정지' : '시간 흐름 재생';
-    if (on) { target = null; pressButtons(null); }
+    if (on) { target = null; pressButtons(null); atMonth(Math.round(tMon)); }
     dirty = true;
   }
 
@@ -222,7 +227,7 @@
     ctx.strokeStyle = t.ink; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.moveTo(p[0], p[1] - 5); ctx.lineTo(p[0], gy + r); ctx.stroke();
     ctx.beginPath(); ctx.arc(p[0], gy, r, 0, Math.PI * 2);
-    var hi = anom > 0.12, lo = anom < -0.12;
+    var hi = anom > 0.3, lo = anom < -0.3;   // hPa
     ctx.fillStyle = hi ? t.ink : t.surface;
     ctx.fill(); ctx.lineWidth = 1.8; ctx.stroke();
     ctx.fillStyle = hi ? t.surface : t.ink;
@@ -305,8 +310,10 @@
     sub.textContent = region;
     return { g: g, needle: needle, tag: tag };
   }
+  // 기압 편차(hPa): 그래프에서 고른 달이면 실제 값, 아니면 실측 합성으로 맞춘 모형 값
+  function pressureNow() { return real ? { darwin: real.darwin, tahiti: real.tahiti } : E.pressure(s); }
   function updateSeesaw() {
-    var pr = E.pressure(s);
+    var pr = pressureNow();
     var ang = clamp((pr.darwin - pr.tahiti) * 6, -16, 16);
     seesaw.beam.setAttribute('transform', 'rotate(' + ang.toFixed(2) + ' 200 150)');
     var rad = ang * Math.PI / 180;
@@ -315,41 +322,50 @@
       var y = 150 + q[0] * Math.sin(rad) + (-6) * Math.cos(rad);
       var e = seesaw.ends[i];
       e.g.setAttribute('transform', 'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')');
-      e.needle.setAttribute('transform', 'rotate(' + clamp(q[1] * 38, -60, 60).toFixed(1) + ' 0 -44)');
-      var v = q[1];
-      e.tag.textContent = v > 0.12 ? '기압 ▲' : v < -0.12 ? '기압 ▼' : '평상시';
-      e.tag.setAttribute('fill', v > 0.12 || v < -0.12 ? 'var(--ink)' : 'var(--muted)');
+      e.needle.setAttribute('transform', 'rotate(' + clamp(q[1] * 30, -60, 60).toFixed(1) + ' 0 -44)');
+      var v = q[1], sig = Math.abs(v) > 0.3;
+      e.tag.textContent = (v > 0.3 ? '기압 ▲' : v < -0.3 ? '기압 ▼' : '평상시') + (real ? ' ' + (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) : '');
+      e.tag.setAttribute('fill', sig ? 'var(--ink)' : 'var(--muted)');
     });
-    var soi = E.soi(s);
+    var soi = real && real.soi != null ? real.soi : E.soi(s);
     $('soi-needle').style.left = (50 + clamp(soi / 2.4, -1, 1) * 44) + '%';
   }
 
-  /* ── 모식 시계열 그래프 ──────────────── */
+  /* ── 실측 시계열 그래프 (1991~2024 월별) ─────── */
   var CH = { x0: 52, x1: 626, top: [26, 128], bot: [168, 270] };
-  function cx(t) { return CH.x0 + t / E.SERIES_YEARS * (CH.x1 - CH.x0); }
-  function cyTop(v) { return CH.top[0] + (3 - v) / 5 * (CH.top[1] - CH.top[0]); }  // −2 … +3 °C
-  function cyBot(v) { return CH.bot[0] + (3 - v) / 6 * (CH.bot[1] - CH.bot[0]); }  // −3 … +3
+  var Y0 = parseInt(MON.start.slice(0, 4), 10);
+  function cx(i) { return CH.x0 + i / (NM - 1) * (CH.x1 - CH.x0); }
+  function cyTop(v) { return CH.top[0] + (3 - clamp(v, -2, 3)) / 5 * (CH.top[1] - CH.top[0]); }  // −2 … +3 °C
+  function cyBot(v) { return CH.bot[0] + (3 - clamp(v, -3, 3)) / 6 * (CH.bot[1] - CH.bot[0]); }  // −3 … +3
+  function ymText(i) { return (Y0 + Math.floor(i / 12)) + '년 ' + (i % 12 + 1) + '월'; }
+  // 남방진동 지수는 달마다 많이 흔들리므로 그 달 앞뒤 1개월(3개월) 평균
+  function runMean(a, i) {
+    var sum = 0, n = 0;
+    for (var k = i - 1; k <= i + 1; k++) if (k >= 0 && k < a.length && a[k] != null) { sum += a[k]; n++; }
+    return n ? sum / n : null;
+  }
   function buildChart() {
     var svg = $('so-chart');
-    var N = E.SERIES_YEARS * 12, i, t, ph, start = 0, prev = null;
+    var i, prev = null, start = 0;
     var nino = [], soi = [];
-    for (i = 0; i <= N; i++) {
-      t = i / 12;
-      var st = E.seriesState(t);
-      nino.push([t, E.nino34(st)]);
-      soi.push([t, E.seriesSoi(t)]);
+    for (i = 0; i < NM; i++) {
+      if (MON.nino34[i] != null) nino.push([i, MON.nino34[i]]);
+      var sv = runMean(MON.soi, i);
+      if (sv != null) soi.push([i, sv]);
     }
-    // 엘니뇨·라니냐 시기 음영
+    // NOAA 공식 판정 음영
     var shade = el('g', {}, svg);
     var lastLabelX = -99;
-    for (i = 0; i <= N + 1; i++) {
-      ph = i <= N ? (nino[i][1] >= 0.5 ? 'nino' : nino[i][1] <= -0.5 ? 'nina' : null) : null;
+    for (i = 0; i <= NM; i++) {
+      var stt = i < NM ? MON.state[i] : null;
+      var ph = stt === 1 ? 'nino' : stt === -1 ? 'nina' : null;
       if (ph !== prev) {
         if (prev) {
-          el('rect', { x: cx(start / 12), y: CH.top[0] - 4, width: cx(i / 12) - cx(start / 12), height: CH.bot[1] - CH.top[0] + 8, fill: prev === 'nino' ? 'var(--nino-soft)' : 'var(--nina-soft)' }, shade);
-          var mid = (cx(start / 12) + cx(i / 12)) / 2;
-          if (mid - lastLabelX > 46) {
-            var lab = el('text', { x: mid, y: CH.top[0] - 8, 'font-size': 11, 'font-weight': 700, 'text-anchor': 'middle', fill: prev === 'nino' ? 'var(--nino)' : 'var(--nina)' }, shade);
+          var x0 = cx(start) - (CH.x1 - CH.x0) / (NM - 1) / 2, x1 = cx(i - 1) + (CH.x1 - CH.x0) / (NM - 1) / 2;
+          el('rect', { x: x0, y: CH.top[0] - 4, width: x1 - x0, height: CH.bot[1] - CH.top[0] + 8, fill: prev === 'nino' ? 'var(--nino-soft)' : 'var(--nina-soft)' }, shade);
+          var mid = (x0 + x1) / 2;
+          if (x1 - x0 > 9 && mid - lastLabelX > 40) {
+            var lab = el('text', { x: mid, y: CH.top[0] - 8, 'font-size': 10.5, 'font-weight': 700, 'text-anchor': 'middle', fill: prev === 'nino' ? 'var(--nino)' : 'var(--nina)' }, shade);
             lab.textContent = prev === 'nino' ? '엘니뇨' : '라니냐';
             lastLabelX = mid;
           }
@@ -368,14 +384,14 @@
     [0.5, -0.5].forEach(function (v) {
       el('line', { x1: CH.x0, x2: CH.x1, y1: cyTop(v), y2: cyTop(v), stroke: 'var(--muted)', 'stroke-dasharray': '3 4', 'stroke-width': 1 }, svg);
     });
-    for (t = 0; t <= E.SERIES_YEARS; t += 4) {
-      var xt = el('text', { x: cx(t), y: CH.bot[1] + 18, 'text-anchor': 'middle' }, ax);
-      xt.textContent = t + (t === E.SERIES_YEARS ? '년' : '');
+    for (var y = Y0 + 4; y <= Y0 + (NM - 1) / 12; y += 5) {
+      var xt = el('text', { x: cx((y - Y0) * 12), y: CH.bot[1] + 18, 'text-anchor': 'middle' }, ax);
+      xt.textContent = y;
     }
-    var h1 = el('text', { x: CH.x0, y: CH.top[0] + 12, 'font-size': 12, 'font-weight': 700, fill: 'var(--ink)', 'font-family': 'var(--font)', dx: 6 }, svg);
-    h1.textContent = '동태평양 수온 편차 (°C)';
-    var h2 = el('text', { x: CH.x0, y: CH.bot[0] + 12, 'font-size': 12, 'font-weight': 700, fill: 'var(--ink)', 'font-family': 'var(--font)', dx: 6 }, svg);
-    h2.textContent = '남방진동 지수';
+    var h1 = el('text', { x: CH.x0, y: CH.top[0] + 12, 'font-size': 12, 'font-weight': 700, fill: 'var(--ink)', 'font-family': 'var(--font)', dx: 6, stroke: 'var(--surface)', 'stroke-width': 4, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, svg);
+    h1.textContent = '엘니뇨 감시 구역 수온 편차 (°C)';
+    var h2 = el('text', { x: CH.x0, y: CH.bot[0] + 12, 'font-size': 12, 'font-weight': 700, fill: 'var(--ink)', 'font-family': 'var(--font)', dx: 6, stroke: 'var(--surface)', 'stroke-width': 4, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, svg);
+    h2.textContent = '남방진동 지수 (3개월 평균)';
 
     // 영역 채우기: 엘니뇨 쪽은 붉게, 라니냐 쪽은 푸르게
     function area(data, fy, zeroY, above, color, id) {
@@ -393,9 +409,10 @@
     function line(data, fy) {
       var d = '';
       data.forEach(function (p, k) { d += (k ? ' L' : 'M') + cx(p[0]).toFixed(1) + ' ' + fy(p[1]).toFixed(1); });
-      el('path', { d: d, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1.2, opacity: 0.7 }, svg);
+      el('path', { d: d, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1, opacity: 0.7 }, svg);
     }
     line(nino, cyTop); line(soi, cyBot);
+    svg.appendChild(h1); svg.appendChild(h2);   // 제목이 그래프 위에 보이게
 
     // 재생 위치
     chart.head = el('g', {}, svg);
@@ -403,15 +420,14 @@
     chart.dotTop = el('circle', { cx: 0, cy: 0, r: 5, fill: 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 2 }, chart.head);
     chart.dotBot = el('circle', { cx: 0, cy: 0, r: 5, fill: 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 2 }, chart.head);
     chart.label = el('text', { x: 0, y: CH.bot[1] + 36, 'font-size': 11.5, 'font-weight': 700, 'text-anchor': 'middle', fill: 'var(--ink)' }, chart.head);
-    chart.data = { nino: nino, soi: soi };
 
     svg.setAttribute('aria-valuemin', 0);
-    svg.setAttribute('aria-valuemax', E.SERIES_YEARS);
+    svg.setAttribute('aria-valuemax', NM - 1);
     var dragging = false, tap = false;
     function seek(e) {
       var r = svg.getBoundingClientRect();
       var x = (e.clientX - r.left) / r.width * 640;
-      goTo((x - CH.x0) / (CH.x1 - CH.x0) * E.SERIES_YEARS);
+      goTo((x - CH.x0) / (CH.x1 - CH.x0) * (NM - 1));
     }
     svg.addEventListener('pointerdown', function (e) {
       // 그래프가 가로로 넘칠 때(휴대폰) 손가락으로 끌면 스크롤하고, 짧게 누르면(click) 이동한다
@@ -426,62 +442,74 @@
     svg.addEventListener('click', function (e) { if (tap) { setPlaying(false); seek(e); } });
     // 키보드: ←/→ 한 달, PageUp/PageDown 1년, Home/End 처음·끝
     svg.addEventListener('keydown', function (e) {
-      var m = Math.round(tYears * 12), n = E.SERIES_YEARS * 12;
-      var k = { ArrowRight: m + 1, ArrowUp: m + 1, ArrowLeft: m - 1, ArrowDown: m - 1, PageUp: m + 12, PageDown: m - 12, Home: 0, End: n }[e.key];
+      var m = Math.round(tMon);
+      var k = { ArrowRight: m + 1, ArrowUp: m + 1, ArrowLeft: m - 1, ArrowDown: m - 1, PageUp: m + 12, PageDown: m - 12, Home: 0, End: NM - 1 }[e.key];
       if (k == null) return;
       e.preventDefault();
       setPlaying(false);
-      goTo(k / 12);
+      goTo(k);
     });
     updateHead();
   }
   function chartScrolls() { var sc = $('so-chart').parentNode; return sc.scrollWidth > sc.clientWidth + 1; }
+  // 그 달의 실제 값으로 지도·시소를 맞춤
+  function atMonth(i) {
+    var a = MON.nino34[i];
+    if (a != null) s = E.stateFromNino34(a);
+    var dw = runMean(MON.darwin, i), th = runMean(MON.tahiti, i);
+    real = dw == null || th == null ? null : { darwin: dw, tahiti: th, soi: runMean(MON.soi, i), state: MON.state[i] };
+  }
   function goTo(t) {
-    tYears = clamp(t, 0, E.SERIES_YEARS);
+    tMon = clamp(t, 0, NM - 1);
     target = null;
-    s = E.seriesState(tYears);
+    atMonth(Math.round(tMon));
     pressButtons(null);
     updateHead();
     update();
   }
   function updateHead() {
-    var i = clamp(Math.round(tYears * 12), 0, chart.data.nino.length - 1);
-    var x = cx(tYears);
+    var i = clamp(Math.round(tMon), 0, NM - 1);
+    var x = cx(tMon);
     chart.head.setAttribute('transform', 'translate(' + x.toFixed(1) + ' 0)');
-    chart.dotTop.setAttribute('cy', cyTop(chart.data.nino[i][1]).toFixed(1));
-    chart.dotBot.setAttribute('cy', cyBot(chart.data.soi[i][1]).toFixed(1));
-    var mi = Math.floor(tYears * 12 + 1e-6), yr = Math.floor(mi / 12), mo = mi % 12 + 1; // 1e-6: k/12 의 부동소수 오차
-    if (yr >= E.SERIES_YEARS) { yr = E.SERIES_YEARS; mo = 0; }
-    chart.label.textContent = mo ? (yr + '년 ' + mo + '월') : (yr + '년');
+    var a = MON.nino34[i], sv = runMean(MON.soi, i);
+    chart.dotTop.style.display = a == null ? 'none' : '';
+    chart.dotBot.style.display = sv == null ? 'none' : '';
+    if (a != null) chart.dotTop.setAttribute('cy', cyTop(a).toFixed(1));
+    if (sv != null) chart.dotBot.setAttribute('cy', cyBot(sv).toFixed(1));
+    chart.label.textContent = ymText(i);
     chart.label.setAttribute('x', x < 90 ? 30 : x > 590 ? -30 : 0);
-    var ph = E.phase(E.seriesState(tYears));
+    var stt = MON.state[i];
     var svg = $('so-chart');
-    svg.setAttribute('aria-valuenow', tYears.toFixed(2));
-    svg.setAttribute('aria-valuetext', chart.label.textContent + ', ' + (ph === 'nino' ? '엘니뇨' : ph === 'nina' ? '라니냐' : '평상시'));
+    svg.setAttribute('aria-valuenow', i);
+    svg.setAttribute('aria-valuetext', chart.label.textContent + ', NOAA 판정 ' + (stt === 1 ? '엘니뇨' : stt === -1 ? '라니냐' : stt === 0 ? '중립' : '자료 없음') +
+      (a != null ? ', 감시 구역 수온 편차 ' + (a > 0 ? '+' : '') + a.toFixed(1) + '도' : ''));
   }
 
   function update() {
     var ph = E.phase(s);
+    if (real && real.state != null && target == null) {
+      // 그래프에서 고른 달: NOAA 공식 판정을 딱지에
+      ph = real.state === 1 ? 'nino' : real.state === -1 ? 'nina' : 'normal';
+      badge.textContent = (real.state === 1 ? '엘니뇨' : real.state === -1 ? '라니냐' : '중립') + ' · ' + chart.label.textContent;
+    } else {
+      badge.textContent = ph === 'nino' ? '엘니뇨' : ph === 'nina' ? '라니냐' : '평상시';
+    }
     badge.setAttribute('data-phase', ph);
-    badge.textContent = ph === 'nino' ? '엘니뇨' : ph === 'nina' ? '라니냐' : '평상시';
     updateSeesaw();
-    chart.head.style.opacity = playing || target == null && !isPreset() ? 1 : 0.35;
-    var pr = E.pressure(s);
+    chart.head.style.opacity = real ? 1 : 0.35;
+    var pr = pressureNow();
     cv.setAttribute('aria-label', '열대 태평양 워커 순환. 현재 ' + badge.textContent + '. 다윈 기압 ' +
-      (pr.darwin > 0.12 ? '평상시보다 높음' : pr.darwin < -0.12 ? '평상시보다 낮음' : '평상시') + ', 타히티 기압 ' +
-      (pr.tahiti > 0.12 ? '평상시보다 높음' : pr.tahiti < -0.12 ? '평상시보다 낮음' : '평상시') + '.');
+      (pr.darwin > 0.3 ? '평상시보다 높음' : pr.darwin < -0.3 ? '평상시보다 낮음' : '평상시') + ', 타히티 기압 ' +
+      (pr.tahiti > 0.3 ? '평상시보다 높음' : pr.tahiti < -0.3 ? '평상시보다 낮음' : '평상시') + '.');
     dirty = true;
-  }
-  function isPreset() {
-    return ['so-normal', 'so-nino', 'so-nina'].some(function (id) { return $(id).getAttribute('aria-pressed') === 'true'; });
   }
 
   M.frame = function (dt) {
     if (!visible || !proj) return;
     if (playing) {
-      tYears += dt * 0.7;
-      if (tYears > E.SERIES_YEARS) tYears = 0;
-      s = E.seriesState(tYears);
+      tMon += dt * 8;                // 1초 = 8달
+      if (tMon > NM - 1) tMon = 0;
+      atMonth(Math.round(tMon));
       updateHead();
       update();
     } else if (target != null) {

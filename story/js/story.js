@@ -69,11 +69,12 @@
     var a = clamp(Math.min(x0, x1), 2, W - 2), b = clamp(Math.min(y0, y1), 2, H - 2);
     return { x: a, y: b, w: clamp(Math.max(x0, x1), 2, W - 2) - a, h: clamp(Math.max(y0, y1), 2, H - 2) - b };
   }
+  // D.drawTradeWind 의 큰 화살표 4개(경도 비율 0.14~0.86, 길이·굵기는 그 경도의 바람 세기)를 감싸는 상자
   function geoWind() {
-    var w = E.wind(s), top = L.padT + 6, bot = L.ySL - 8, span = L.ox1 - L.ox0;
-    var thick = (4 + 7 * w) * L.u + 2, len2 = span * (0.07 + 0.09 * w);
-    var yA = bot - (bot - top) * 0.3, yHi = yA - (bot - top) * 0.22, fs = clamp(12 * L.u + 3, 11, 16);
-    return box(L.ox0 + span * 0.24 - len2 / 2 - 8, yHi - thick - fs * 1.4, L.ox0 + span * 0.8 + len2 / 2 + 8, yA + thick + 4);
+    var top = L.padT + 6, bot = L.ySL - 8, span = L.ox1 - L.ox0;
+    var thick = (3 + 8 * 1.3) * L.u + 1.5, len2 = span * (0.03 + 0.1 * 1.3);
+    var yA = bot - (bot - top) * 0.3, yHi = yA - (bot - top) * 0.22;
+    return box(L.ox0 + span * 0.14 - len2 / 2 - 6, yHi - thick - 6, L.ox0 + span * 0.86 + len2 / 2 + 6, yA + thick + 4);
   }
   function geoFlow() {
     var w = E.wind(s), y = L.zToY(12);

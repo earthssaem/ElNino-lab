@@ -1,11 +1,15 @@
-/* ENSO 모식 모형
- * 상태 변수 s : -1(무역풍 매우 약함, 강한 엘니뇨) … 0(평상시) … +1(무역풍 매우 강함, 강한 라니냐)
+/* ENSO 모형 — 실측 자료로 맞춘 평상시·엘니뇨·라니냐 사이를 상태 s 로 잇는다
+ * 상태 s : −1(엘니뇨 사례 3개 합성) … 0(1991~2020 평년) … +1(라니냐 사례 2개 합성)
+ *   s 사이 값은 평년값에 합성 편차를 |s| 만큼 더한다(선형). 합성 편차·평년값은 js/obs-calib.js(window.ENSO_OBS,
+ *   pipeline/build_sim.py 가 ERSST v5·GODAS·NCEP/NCAR R1·GPCP v2.3·NOAA CPC 기압으로 만든 값)에서 읽는다.
+ * s 는 숫자(바다 전체가 같은 상태) 또는 경도마다 상태가 다른 객체 {w, h(lon), t(lon), mean, key}다.
+ *   w: 무역풍 상태, h(lon): 수온 약층(아래쪽 수온) 상태, t(lon): 표층 수온 상태, mean: 대기가 느끼는 평균 상태.
+ *   ① 의 시간 변화(Ocean)가 이 객체를 만든다.
  * 경도는 0~360°E 로 다룬다 (180 = 날짜 변경선, 260 = 100°W).
- * 수치는 관측 기후값(적도 태평양 연평균 단면, 1997/98 엘니뇨, 2010/11 라니냐 등)의
- * 대략적인 크기에 맞춘 교육용 모식값이다.
  */
 (function () {
   'use strict';
+  var O = window.ENSO_OBS;
 
   var LON_W = 130; // 적도 태평양 서쪽 경계(뉴기니 부근)
   var LON_E = 280; // 적도 태평양 동쪽 경계(에콰도르 해안, 80°W)
@@ -17,88 +21,114 @@
   function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
   // s<0 이면 평상시→엘니뇨, s>0 이면 평상시→라니냐 쪽으로 보간
   function by(s, nino, normal, nina) { return s < 0 ? lerp(normal, nino, -s) : lerp(normal, nina, s); }
-  function piecewise(tbl, x) {
-    var xs = tbl[0], ys = tbl[1];
-    if (x <= xs[0]) return ys[0];
-    for (var i = 1; i < xs.length; i++) {
-      if (x <= xs[i]) return lerp(ys[i - 1], ys[i], (x - xs[i - 1]) / (xs[i] - xs[i - 1]));
-    }
-    return ys[ys.length - 1];
+  // 합성 편차 섞기: s<0 은 엘니뇨 편차 × |s|, s>0 은 라니냐 편차 × s
+  function blend(s, dNino, dNina) { return s < 0 ? -s * dNino : s * dNina; }
+
+  /* ── 상태 꺼내기 ─────────────────────── */
+  function isNum(s) { return typeof s === 'number'; }
+  function sH(s, lon) { return isNum(s) ? s : s.h(lon); }
+  function sT(s, lon) { return isNum(s) ? s : s.t(lon); }
+  function sW(s) { return isNum(s) ? s : s.w; }
+  function sMean(s) { return isNum(s) ? s : s.mean; }
+  function skey(s) { return isNum(s) ? s.toFixed(3) : s.key; }
+  // 평상시와 거의 같은 상태인지(평상시 비교선을 그릴지 정할 때)
+  function near0(s) { return isNum(s) ? Math.abs(s) < 0.03 : s.dev < 0.03; }
+
+  // 등간격 경도 표에서 선형 보간 (끝 밖은 끝값)
+  function table(lons, vals) {
+    var x0 = lons[0], dx = lons[1] - lons[0], n = lons.length;
+    return function (lon) {
+      var f = clamp((lon - x0) / dx, 0, n - 1), i = Math.min(n - 2, Math.floor(f));
+      return lerp(vals[i], vals[i + 1], f - i);
+    };
   }
 
   /* ── 무역풍 ─────────────────────────────── */
-  // 평상시 = 1. 엘니뇨 쪽으로 최대 60 % 약화, 라니냐 쪽으로 최대 40 % 강화
-  function wind(s) { return s < 0 ? 1 + 0.6 * s : 1 + 0.4 * s; }
+  // 서·중앙 태평양(5°S~5°N, 135°E~140°W) 10 m 동서 바람의 평년 대비 세기. 평상시 = 1
+  var TR = O.trade, K_NINO = TR.dNino / -TR.u0, K_NINA = -TR.dNina / -TR.u0;
+  function wind(s) { var w = sW(s); return w < 0 ? 1 + K_NINO * w : 1 + K_NINA * w; }
   // 용승(에크만 발산)은 바람 응력(∝ 풍속²)에 비례
   function upwelling(s) { var w = wind(s); return w * w; }
+  // 경도별 무역풍(동풍) 세기 m/s (적도 5°S~5°N R1 평년 + 합성 편차). 음수면 서풍
+  var U0 = table(O.u.lon, O.u.u0), UN = table(O.u.lon, O.u.dNino), UL = table(O.u.lon, O.u.dNina);
+  function windAt(lon, s) { return -(U0(lon) + blend(sW(s), UN(lon), UL(lon))); }
+  function windFromRatio(r) { return r < 1 ? (r - 1) / K_NINO : (r - 1) / K_NINA; }
 
-  /* ── 표층 수온 ─────────────────────────── */
-  // 평상시: 서태평양 약 29.6 °C 난수역, 날짜 변경선 동쪽부터 차가워져 동태평양 약 24 °C
-  function sstNormal(lon) {
-    var u = clamp((lon - 170) / 105, 0, 1);
-    return 29.6 - 5.6 * smooth(Math.pow(u, 0.9));
-  }
-  // 강한 엘니뇨(s=-1) / 강한 라니냐(s=+1) 때 평상시 대비 표층 수온 편차(°C)
-  var ANOM_NINO = [[130, 150, 165, 180, 200, 220, 240, 260, 280], [-0.8, -0.6, 0, 1.0, 2.0, 2.8, 3.4, 3.8, 3.8]];
-  var ANOM_NINA = [[130, 150, 165, 180, 200, 220, 240, 260, 280], [0.5, 0.4, 0, -0.8, -1.4, -1.6, -1.5, -1.2, -1.0]];
-  function sstAnom(lon, s) {
-    return s < 0 ? -s * piecewise(ANOM_NINO, lon) : s * piecewise(ANOM_NINA, lon);
-  }
-  function sst(lon, s) { return sstNormal(lon) + sstAnom(lon, s); }
+  /* ── 표층 수온 (ERSST v5, 2°S~2°N) ─────── */
+  var SST0 = table(O.sst.lon, O.sst.T0), SSTN = table(O.sst.lon, O.sst.dNino), SSTL = table(O.sst.lon, O.sst.dNina);
+  function sstNormal(lon) { return SST0(lon); }
+  function sstAnom(lon, s) { return blend(sT(s, lon), SSTN(lon), SSTL(lon)); }
+  function sst(lon, s) { return SST0(lon) + sstAnom(lon, s); }
 
-  /* ── 수온 약층 ─────────────────────────── */
-  // 20 °C 등온선 깊이(m). 서쪽 끝 Dw, 동쪽 끝 De 사이를 관측 모양에 맞춘 곡선으로 잇는다.
-  function tiltShape(lon) {
-    var u = clamp((lon - 150) / 130, 0, 1);
-    return 0.5 * (1 - Math.pow(u, 1.6)) + 0.5 * (1 - smooth(u));
-  }
-  function iso20(lon, s) {
-    var dw = by(s, 115, 165, 190);
-    var de = by(s, 100, 35, 15);
-    return de + (dw - de) * tiltShape(lon);
-  }
-  // 혼합층 두께 = 수온 약층이 시작되는 깊이
-  function mixedLayer(lon, s) { return 0.5 * iso20(lon, s); }
-
-  // 연직 수온 분포 T(경도, 깊이 z[m])
-  function temp(lon, z, s) {
-    var S = sst(lon, s), D = iso20(lon, s), M = 0.5 * D;
-    if (z <= M) return S;
-    if (z <= D) return 20 + (S - 20) * (1 - Math.pow((z - M) / (D - M), 1.4));
-    return 6 + 14 * Math.exp(-(z - D) / 120);
-  }
-  // 한 경도의 연직 구조를 미리 계산해 두고 빠르게 수온을 얻는다 (그림 그릴 때 사용)
+  /* ── 적도 수온 단면 (GODAS, 2°S~2°N 평균) ── */
+  var SEC = O.section, ZK = SEC.depth, NZ = ZK.length, NX = SEC.lon.length;
+  var X0 = SEC.lon[0], DX = SEC.lon[1] - SEC.lon[0];
+  // 깊이에 따라 표층 상태(t)와 아래쪽 상태(h)를 섞는 비율: 표층 0 → 60 m 아래 1
+  var WZ = ZK.map(function (z) { return smooth((z - 5) / 55); });
+  // 같은 상태·같은 경도(0.25° 단위)의 연직 수온은 한 번만 계산한다(그림 한 장에 수천 번 부름)
+  var colCache = new Map();
   function column(lon, s) {
-    var D = iso20(lon, s);
-    return { S: sst(lon, s), D: D, M: 0.5 * D };
+    var q = Math.round(lon * 4), m;
+    if (isNum(s)) {
+      var k = s.toFixed(4);
+      m = colCache.get(k);
+      if (!m) {
+        if (colCache.size > 8) colCache.delete(colCache.keys().next().value);
+        colCache.set(k, (m = {}));
+      }
+    } else m = s._cc || (s._cc = {});
+    return m[q] || (m[q] = columnAt(q / 4, s));
+  }
+  function columnAt(lon, s) {
+    var f = clamp((lon - X0) / DX, 0, NX - 1), i = Math.min(NX - 2, Math.floor(f)), a = f - i;
+    var h = sH(s, lon), t = sT(s, lon), P = new Array(NZ);
+    for (var k = 0; k < NZ; k++) {
+      var j = k * NX + i;
+      var T0 = lerp(SEC.T0[j], SEC.T0[j + 1], a);
+      var dn = lerp(SEC.dNino[j], SEC.dNino[j + 1], a), dl = lerp(SEC.dNina[j], SEC.dNina[j + 1], a);
+      P[k] = T0 + (1 - WZ[k]) * blend(t, dn, dl) + WZ[k] * blend(h, dn, dl);
+    }
+    var D = cross(P, 20), M = cross(P, P[0] - 0.5);
+    return { S: sst(lon, s), P: P, D: D == null ? ZK[NZ - 1] : D, M: M == null ? ZK[NZ - 1] : Math.max(M, 4), D15: cross(P, 15) || ZK[NZ - 1] };
+  }
+  // 위에서 내려가며 처음 T 보다 낮아지는 깊이(선형 보간). 없으면 null
+  function cross(P, T) {
+    if (P[0] < T) return 0;
+    for (var k = 0; k < NZ - 1; k++) {
+      if (P[k] >= T && P[k + 1] < T) return ZK[k] + (P[k] - T) / (P[k] - P[k + 1]) * (ZK[k + 1] - ZK[k]);
+    }
+    return null;
   }
   function tempAt(c, z) {
-    if (z <= c.M) return c.S;
-    if (z <= c.D) return 20 + (c.S - 20) * (1 - Math.pow((z - c.M) / (c.D - c.M), 1.4));
-    return 6 + 14 * Math.exp(-(z - c.D) / 120);
+    if (z <= ZK[0]) return c.P[0];
+    for (var k = 0; k < NZ - 1; k++) {
+      if (z <= ZK[k + 1]) return lerp(c.P[k], c.P[k + 1], (z - ZK[k]) / (ZK[k + 1] - ZK[k]));
+    }
+    return c.P[NZ - 1];
   }
+  function temp(lon, z, s) { return tempAt(column(lon, s), z); }
+  // 20 °C 등온선 깊이(m) = 수온 약층의 대표 깊이
+  function iso20(lon, s) { return column(lon, s).D; }
+  // 혼합층 두께 = 수온 약층이 시작되는 깊이 (표층보다 0.5 °C 낮아지는 깊이)
+  function mixedLayer(lon, s) { return column(lon, s).M; }
   // 특정 수온이 나타나는 깊이 (없으면 null)
   function depthOf(lon, T, s, zMax) {
-    zMax = zMax || 400;
-    if (temp(lon, 0, s) < T) return null;
-    if (temp(lon, zMax, s) > T) return null;
-    var a = 0, b = zMax;
-    for (var i = 0; i < 26; i++) {
-      var m = 0.5 * (a + b);
-      if (temp(lon, m, s) > T) a = m; else b = m;
-    }
-    return 0.5 * (a + b);
+    var c = column(lon, s), z = cross(c.P, T);
+    return z == null || z > (zMax || 400) ? null : z;
   }
 
   /* ── 해수면 ───────────────────────────── */
   // 따뜻한 층이 두꺼운 곳일수록 해수면이 높다: η ≈ (Δρ/ρ)·h, Δρ/ρ ≈ 0.0032
-  // 값은 기준면에 대한 높이(cm). 평상시 서(150°E)−동(90°W) 차 ≈ 40 cm
+  // 값은 기준면에 대한 높이(cm). 평상시 서(150°E)−동(90°W) 차 ≈ 45 cm (실측 해수면 높이 차와 비슷한 크기)
   function seaLevel(lon, s) { return 0.32 * (iso20(lon, s) - 100); }
 
   /* ── 엘니뇨 감시 구역 수온 편차 (Niño 3.4: 5°S~5°N, 170°W~120°W) ── */
+  // 실측 합성값(엘니뇨 +2.3 °C, 라니냐 −1.3 °C)에 맞춘다. 경도마다 상태가 다르면 170°W~120°W 의 표층 상태를 평균
+  var N34 = O.nino34;
   function nino34(s) {
+    if (isNum(s)) return blend(s, N34.nino, N34.nina);
     var sum = 0, n = 0;
-    for (var lon = 190; lon <= 240; lon += 2) { sum += sstAnom(lon, s); n++; }
+    for (var lon = 190; lon <= 240; lon += 2) { sum += blend(s.t(lon), N34.nino, N34.nina); n++; }
     return sum / n;
   }
   // 편차 ±0.5 °C 가 기준
@@ -106,61 +136,122 @@
     var a = nino34(s);
     return a >= 0.5 ? 'nino' : a <= -0.5 ? 'nina' : 'normal';
   }
+  // Niño 3.4 편차 → 같은 편차를 내는 s
+  function stateFromNino34(a) { return clamp(a >= 0 ? -a / N34.nino : a / N34.nina, -1, 1); }
 
   /* ── 대기: 워커 순환 ──────────────────── */
+  // 비가 많이 내리는 곳의 중심 경도와 세기는 GPCP 강수 합성에서
+  var RAIN = O.rain;
   function walker(s) {
-    var rise = s >= 0 ? 140 - 10 * s : 140 + 50 * -s; // 상승 기류(구름·비) 중심 경도
+    var m = sMean(s);
+    var rise = by(m, RAIN.centerNino, RAIN.center0, RAIN.centerNina); // 상승 기류(구름·비) 중심 경도
     return {
       rise: rise,
       sinkE: 262,                                  // 동태평양 하강 기류
       sinkW: 118,                                  // 인도네시아·오스트레일리아 북부 하강 기류
-      east: by(s, 0.55, 1, 1.45),                  // 동쪽 순환 세기
-      west: clamp((rise - 158) / 32, 0, 1) * 0.85, // 엘니뇨 때 생기는 서쪽 순환 세기
-      convection: by(s, 0.85, 1, 1.35)             // 상승 기류(구름) 세기
+      east: by(m, 0.55, 1, 1.45),                  // 동쪽 순환 세기
+      west: clamp((rise - 166) / 24, 0, 1) * 0.85, // 엘니뇨 때 생기는 서쪽 순환 세기
+      convection: by(m, RAIN.peakNino / RAIN.peak0, 1, RAIN.peakNina / RAIN.peak0) // 상승 기류(구름) 세기
     };
   }
 
-  /* ── 남방진동: 해면 기압 편차(모식, 단위 없음) ── */
+  /* ── 남방진동: 다윈·타히티 해면 기압 편차(hPa, 1991~2020 평년 대비 실측 합성) ── */
+  var PR = O.pressure;
   function pressure(s) {
-    return { darwin: -1.2 * s, tahiti: 1.2 * s };
+    var m = sMean(s);
+    return { darwin: blend(m, PR.darwinNino, PR.darwinNina), tahiti: blend(m, PR.tahitiNino, PR.tahitiNina) };
   }
-  // 남방진동 지수 ∝ 타히티 기압 편차 − 다윈 기압 편차 (양수: 라니냐, 음수: 엘니뇨)
-  function soi(s) { var p = pressure(s); return p.tahiti - p.darwin; }
+  // 남방진동 지수(표준화, NOAA CPC) 실측 합성 (양수: 라니냐, 음수: 엘니뇨)
+  function soi(s) { return blend(sMean(s), PR.soiNino, PR.soiNina); }
 
-  /* ── 모식 시계열 (실제 관측값이 아님) ─── */
-  // 24년 동안의 가상 사건: [정점 시각(년), 세기 s, 지속 폭(년)]
-  // 2~7년 간격, 겨울철 정점, 강한 엘니뇨 뒤의 라니냐, 여러 해 이어지는 라니냐를 흉내 냈다.
-  var EVENTS = [
-    [1.95, -0.55, 0.45], [3.1, 0.45, 0.5],
-    [6.95, -1.0, 0.5], [8.1, 0.62, 0.6], [9.05, 0.5, 0.6], [10.0, 0.42, 0.55],
-    [13.95, -0.45, 0.45], [16.0, 0.45, 0.55],
-    [18.95, -0.92, 0.5], [20.1, 0.55, 0.6], [21.05, 0.42, 0.55],
-    [22.95, -0.6, 0.45]
-  ];
-  var SERIES_YEARS = 24;
-  function seriesState(t) {
-    var v = 0;
-    for (var i = 0; i < EVENTS.length; i++) {
-      var e = EVENTS[i], d = (t - e[0]) / e[2];
-      v += e[1] * Math.exp(-d * d);
+  /* ── 시간에 따라 변하는 바다 ───────────────
+   * 무역풍이 바뀌면 바다는 곧바로 바뀌지 않는다. 바람이 가장 크게 바뀌는 날짜 변경선 서쪽(175°E)에서 시작한 수온 약층의 변화가
+   * 동쪽으로는 빠르게(약 60°/월 ≈ 2.6 m/s, 적도 켈빈파), 서쪽으로는 느리게(약 20°/월, 로스비파) 퍼지고,
+   * 표층 수온은 수온 약층을 약 1개월 늦게 따라간다. 시간 단위는 '달'.
+   * 실제 1991~2024 무역풍으로 돌리면 감시 구역 수온 편차가 실측과 상관 0.8 정도로 맞는다(pipeline/build_sim.py 와 README).
+   */
+  var OC = { src: 175, cEast: 60, cWest: 20, tauH: 0.7, tauT: 1.0 };
+  var GL = []; for (var g = LON_W; g <= LON_E + 0.01; g += 2) GL.push(g);
+  function Ocean(s0) {
+    this.h = GL.map(function () { return s0 || 0; });
+    this.t = this.h.slice();
+    this.delay = GL.map(function (lon) { return lon >= OC.src ? (lon - OC.src) / OC.cEast : (OC.src - lon) / OC.cWest; });
+    this.time = 0;
+    this.hist = [[-12, s0 || 0], [0, s0 || 0]];
+    this.w = s0 || 0;
+    this.change = { t: -99, from: this.w, to: this.w };
+    this.moved = -99;   // 바람이 마지막으로 바뀐 시각
+  }
+  Ocean.prototype.reset = function (s0) { Ocean.call(this, s0); };
+  // 시각 t 의 바람 상태(기록에서 선형 보간)
+  Ocean.prototype.windAt = function (t) {
+    var H = this.hist;
+    if (t <= H[0][0]) return H[0][1];
+    for (var i = H.length - 1; i > 0; i--) {
+      if (t >= H[i - 1][0]) {
+        var a = H[i - 1], b = H[i];
+        return b[0] === a[0] ? b[1] : lerp(a[1], b[1], clamp((t - a[0]) / (b[0] - a[0]), 0, 1));
+      }
     }
-    return clamp(v, -1, 1);
-  }
-  // 남방진동 지수의 달마다 흔들림(결정적 잡음)
-  function seriesSoi(t) {
-    var n = 0.22 * Math.sin(t * 37.1) + 0.14 * Math.sin(t * 91.7 + 1.3);
-    return soi(seriesState(t)) + n;
-  }
+    return H[H.length - 1][1];
+  };
+  // dt 달만큼 나아간다. w = 지금 무역풍 상태
+  Ocean.prototype.step = function (dt, w) {
+    if (dt <= 0) return;
+    // 바람이 반달 넘게 그대로 있다가 다시 바뀌기 시작하면 새 변화의 시작
+    if (Math.abs(w - this.w) > 1e-4) {
+      if (this.time - this.moved > 0.5) this.change = { t: this.time, from: this.w, to: w };
+      else this.change.to = w;
+      this.moved = this.time + dt;
+    }
+    var n = Math.max(1, Math.ceil(dt / 0.05)), d = dt / n;
+    for (var k = 0; k < n; k++) {
+      this.time += d;
+      this.w = lerp(this.w, w, (k + 1) / n);
+      this.hist.push([this.time, this.w]);
+      var aH = Math.min(1, d / OC.tauH), aT = Math.min(1, d / OC.tauT);
+      for (var i = 0; i < GL.length; i++) {
+        this.h[i] += (this.windAt(this.time - this.delay[i]) - this.h[i]) * aH;
+        this.t[i] += (this.h[i] - this.t[i]) * aT;
+      }
+    }
+    var keep = this.time - 8;
+    while (this.hist.length > 2 && this.hist[1][0] < keep) this.hist.shift();
+  };
+  // 바람과 바다가 모두 자리를 잡았는지
+  Ocean.prototype.settled = function () {
+    for (var i = 0; i < GL.length; i++) if (Math.abs(this.t[i] - this.w) > 0.01 || Math.abs(this.h[i] - this.w) > 0.01) return false;
+    return true;
+  };
+  // 수온 약층 변화가 퍼져 나간 앞머리 경도 [서쪽, 동쪽] (변화가 없거나 다 퍼졌으면 null)
+  Ocean.prototype.fronts = function () {
+    var c = this.change, el = this.time - c.t;
+    if (Math.abs(c.to - c.from) < 0.12 || el < 0) return null;
+    var e = OC.src + OC.cEast * el, w = OC.src - OC.cWest * el;
+    return { east: e <= LON_E ? e : null, west: w >= LON_W ? w : null, warm: c.to < c.from, elapsed: el };
+  };
+  // 지금 바다 상태 → 모형 함수에 넘기는 상태 객체
+  Ocean.prototype.state = function () {
+    var h = this.h.slice(), t = this.t.slice(), w = this.w;
+    var fh = table(GL, h), ft = table(GL, t), sum = 0, n = 0, dev = Math.abs(w), q = [];
+    for (var i = 0; i < GL.length; i++) {
+      if (GL[i] >= 160 && GL[i] <= 240) { sum += t[i]; n++; }
+      dev = Math.max(dev, Math.abs(h[i]), Math.abs(t[i]));
+      q.push(Math.round(h[i] * 300), Math.round(t[i] * 300));
+    }
+    return { w: w, h: fh, t: ft, mean: sum / n, dev: dev, key: 'o' + Math.round(w * 300) + ':' + q.join(',') };
+  };
 
   window.ENSO = {
     LON_W: LON_W, LON_E: LON_E, PROBE_W: PROBE_W, PROBE_E: PROBE_E,
     clamp: clamp, lerp: lerp, smooth: smooth,
-    wind: wind, upwelling: upwelling,
+    sW: sW, sMean: sMean, skey: skey, near0: near0,
+    wind: wind, upwelling: upwelling, windAt: windAt, windFromRatio: windFromRatio,
     sstNormal: sstNormal, sstAnom: sstAnom, sst: sst,
     iso20: iso20, mixedLayer: mixedLayer, temp: temp, depthOf: depthOf,
     column: column, tempAt: tempAt,
-    seaLevel: seaLevel, nino34: nino34, phase: phase,
+    seaLevel: seaLevel, nino34: nino34, phase: phase, stateFromNino34: stateFromNino34,
     walker: walker, pressure: pressure, soi: soi,
-    SERIES_YEARS: SERIES_YEARS, seriesState: seriesState, seriesSoi: seriesSoi
+    Ocean: Ocean, OBS: O
   };
 })();

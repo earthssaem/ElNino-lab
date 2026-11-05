@@ -246,7 +246,7 @@
   /* ── 수온 단면 이미지 (캐시) ─────────── */
   var fieldCache = new Map();
   function field(L, s, mode) {
-    var key = L.key + '|' + mode + '|' + s.toFixed(3);
+    var key = L.key + '|' + mode + '|' + E.skey(s);
     var hit = fieldCache.get(key);
     if (hit) return hit;
     var ext0 = L.ox0 - L.landW * 0.7, ext1 = L.ox1 + L.landE * 0.7;
@@ -349,7 +349,7 @@
     for (var x = L.ox0 - L.landW * 0.7; x <= L.ox1 + L.landE * 0.7; x += 4) {
       var lon = clamp(L.xToLon(x), E.LON_W, E.LON_E), c = E.column(lon, s);
       top.push([x, L.zToY(c.M)]);
-      bot.push([x, L.zToY(Math.min(L.zMax, c.D + 120 * Math.log(14 / 9)))]);
+      bot.push([x, L.zToY(Math.min(L.zMax, c.D15))]);
     }
     var line = o.mode === 'anom' ? 'rgba(16,24,32,0.8)' : 'rgba(255,255,255,0.95)';
     ctx.save();
@@ -372,7 +372,7 @@
 
   // 평상시 비교선 (점선)
   D.drawGhost = function (ctx, L, s, o) {
-    if (Math.abs(s) < 0.03) return;
+    if (E.near0(s)) return;
     var t = D.theme();
     ctx.save();
     ctx.setLineDash([5, 4]);
@@ -596,8 +596,9 @@
 
   // 영양염이 풍부한 어장: 용승이 강할수록 플랑크톤·물고기가 많다
   var FISH = [[268, 7], [274, 13], [262, 12], [277, 5], [257, 8], [270, 19]];
+  // 물고기 = 용승 세기 × 올라오는 물의 영양염(동태평양 수온 약층이 얕을수록 깊은 곳의 찬물이 올라옴)
   D.drawFishery = function (ctx, L, s, time) {
-    var U = E.upwelling(s);
+    var U = E.upwelling(s) * clamp((100 - E.iso20(265, s)) / 60, 0.12, 1.3);
     var n = clamp(Math.round(U * 3.1), 0, 6);
     var dots = Math.round(U * 16);
     ctx.save();
@@ -623,12 +624,14 @@
     for (var i = 0; i < n; i++) P.push({ x: rand(i + 500), y: rand(i + 600), k: rand(i + 700) });
     return P;
   };
+  // 경도마다 실측 합성 바람(적도 5°S~5°N 10 m 동서 바람)의 세기와 방향으로 그린다. 서풍이면 화살표가 동쪽을 향함
+  var WIND_REF = 4.5; // m/s: 이 세기일 때 화살표가 가장 길다
   D.drawTradeWind = function (ctx, L, s, P, dt, o) {
     var t = D.theme();
     var W = E.wind(s);
     var top = L.padT + 6, bot = L.ySL - 8;
     var span = L.ox1 - L.ox0;
-    // 흐르는 바람 줄
+    // 흐르는 바람 줄: 전체 무역풍 세기만큼 흐르고, 줄의 길이는 그 경도의 바람 세기(바람이 약한 곳에 줄이 몰리지 않게)
     var n = Math.round(P.length * clamp(W / 1.4, 0.12, 1));
     ctx.save();
     ctx.strokeStyle = t.streak;
@@ -637,28 +640,32 @@
     ctx.beginPath();
     for (var i = 0; i < P.length; i++) {
       var p = P[i];
+      var v = E.windAt(E.LON_W + p.x * (E.LON_E - E.LON_W), s) / WIND_REF;
       if (dt) p.x -= dt * (0.05 + 0.05 * p.k) * W;
       if (p.x < 0) { p.x += 1; p.y = rand(p.y * 31 + i); }
-      if (i >= n) continue;
+      if (i >= n || Math.abs(v) < 0.08) continue;
       var x = L.ox0 + p.x * span, y = top + (0.25 + 0.72 * p.y) * (bot - top);
-      var len = (10 + 22 * W) * L.u;
+      var len = (6 + 26 * Math.min(1.3, Math.abs(v))) * L.u * (v > 0 ? 1 : -1);
       ctx.moveTo(x, y); ctx.lineTo(x + len, y);
     }
     ctx.globalAlpha = 0.75;
     ctx.stroke();
     ctx.restore();
-    // 큰 화살표 3개
-    var thick = (4 + 7 * W) * L.u + 2;
-    var len2 = span * (0.07 + 0.09 * W);
+    // 큰 화살표 4개: 길이·굵기 = 그 경도의 바람 세기
     var yA = bot - (bot - top) * 0.3;
-    [0.8, 0.52, 0.24].forEach(function (f, i) {
-      var xc = L.ox0 + span * f;
-      var yy = yA - (i % 2) * (bot - top) * 0.22;
-      D.blockArrow(ctx, xc + len2 / 2, xc - len2 / 2, yy, thick, t.windFill, t.windEdge);
+    [0.86, 0.62, 0.38, 0.14].forEach(function (f, i) {
+      var lon = E.LON_W + f * (E.LON_E - E.LON_W);
+      var v = E.windAt(lon, s) / WIND_REF, a = Math.min(1.3, Math.abs(v));
+      if (a < 0.06) return;
+      var thick = (3 + 8 * a) * L.u + 1.5, len2 = span * (0.03 + 0.1 * a);
+      var xc = L.ox0 + span * f, yy = yA - (i % 2) * (bot - top) * 0.22;
+      var dir = v > 0 ? 1 : -1;
+      D.blockArrow(ctx, xc + dir * len2 / 2, xc - dir * len2 / 2, yy, thick, v > 0 ? t.windFill : t.walker, t.windEdge);
     });
     if (o.labels) {
       var fs = clamp(12 * L.u + 3, 11, 16);
-      D.text(ctx, '무역풍', L.ox0 + span * 0.52, yA - (bot - top) * 0.22 - thick - fs * 0.7, { size: fs, weight: 800, color: t.ink });
+      var thickL = (3 + 8 * Math.min(1.3, Math.abs(E.windAt(E.LON_W + 0.62 * (E.LON_E - E.LON_W), s)) / WIND_REF)) * L.u + 1.5;
+      D.text(ctx, '무역풍', L.ox0 + span * 0.62, yA - (bot - top) * 0.22 - thickL - fs * 0.7, { size: fs, weight: 800, color: t.ink });
     }
   };
 

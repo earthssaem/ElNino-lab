@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 저장소에 웹앱이 세 개 있다. 루트(`/`)는 아래에 설명한 개념 시뮬레이터, `observatory/`는 실제 관측·재분석 자료를 보여 주는 「엘니뇨·라니냐 실측자료 탐구실」(아래 「실측자료 탐구실」 절), `story/`는 캐릭터 대화로 배우는 통합과학용 「대화로 배우는 엘니뇨」다(아래 「대화로 배우는 엘니뇨」 절).
 
-지구과학Ⅰ 「대기와 해양의 상호 작용」(엘니뇨·라니냐, 남방진동) 수업용 정적 웹앱이다. 빌드 도구, 패키지, 테스트 코드가 없고 `index.html`을 브라우저로 열면 바로 동작한다. 글은 최소로 하고 모식도와 조작 위주로 만든다. 용어는 교과서 용어(수온 약층, 혼합층, 용승, 엘니뇨 감시 구역, 남방진동 지수, 워커 순환)를 따른다.
+지구과학Ⅰ 「대기와 해양의 상호 작용」(엘니뇨·라니냐, 남방진동) 수업용 정적 웹앱이다. 빌드 도구, 패키지, 테스트 코드가 없고 `index.html`을 브라우저로 열면 바로 동작한다. 글은 최소로 하고 그림과 조작 위주로 만든다. 평상시·엘니뇨·라니냐는 실측 자료로 맞춘 시뮬레이션이다(아래 「상태 변수」). 용어는 교과서 용어(수온 약층, 혼합층, 용승, 엘니뇨 감시 구역, 남방진동 지수, 워커 순환)를 따른다.
 
 ## 명령
 
@@ -33,15 +33,18 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 
 모듈 시스템 없이 `<script>` 태그로 읽고 전역 객체로 연결한다. **읽는 순서가 의존 순서**다(`index.html` 아래쪽):
 
-`land.js`(`window.ENSO_LAND`) → `model.js`(`window.ENSO`) → `draw.js`(`window.ENSODraw`) → `tab-wind.js` / `tab-compare.js` / `tab-so.js`(`window.TabWind` 등) → `app.js`
+`land.js`(`window.ENSO_LAND`) → `obs-calib.js`(`window.ENSO_OBS`, 자동 생성) → `model.js`(`window.ENSO`) → `draw.js`(`window.ENSODraw`) → `tab-wind.js` / `tab-compare.js` / `tab-so.js`(`window.TabWind` 등) → `app.js`
 
 ### 상태 변수 `s` 하나로 모든 값이 정해진다
 
-- `s` ∈ [−1, 1]: −1 강한 엘니뇨(무역풍 약화) · 0 평상시 · +1 강한 라니냐(무역풍 강화). 탭의 엘니뇨·라니냐 버튼은 ±0.85.
+- `s` ∈ [−1, 1]: −1 엘니뇨(실제 사례 3개 합성) · 0 평상시(1991~2020 연평균) · +1 라니냐(실제 사례 2개 합성). 사이 값은 평년 + 합성 편차 × |s|. 루트 탭의 엘니뇨·라니냐 버튼은 ±1(사례 평균), `story/`는 ±0.85.
+- 평년값·합성 편차·바람·강수·기압·1991~2024 월별 지수는 `js/obs-calib.js`(`pipeline/build_sim.py`가 `observatory/data/`와 NOAA CPC 기압으로 생성)에서 읽는다. **이 파일을 손으로 고치거나 값을 지어내지 않는다.** 바꾸려면 스크립트를 다시 돌린다.
+- `s`는 숫자 또는 경도별 상태 객체 `{w, h(lon), t(lon), mean, dev, key}`다. 모형 함수는 둘 다 받는다. 캐시 키는 `E.skey(s)`, 평상시 여부는 `E.near0(s)`, 바람은 `E.sW(s)`로 꺼낸다(숫자 비교 `s < 0`, `s.toFixed`를 직접 쓰지 않는다).
+- ①은 `E.Ocean`이 시간(달)에 따라 바다를 움직인다: 무역풍 변화가 175°E에서 동쪽 60°/월·서쪽 20°/월로 퍼지고, 수온 약층 τ 0.7개월, 표층 수온 τ 1개월(`OC`). '움직임'이 꺼지면 바로 새 평형 상태로. '실제 무역풍으로 재생'은 `monthly.windAnom`(앞 3개월 평균)을 `E.windFromRatio`로 상태로 바꿔 쓴다.
 - 경도는 0~360°E로 다룬다(180 = 날짜 변경선, 260 = 100°W). 단면은 `LON_W`=130 ~ `LON_E`=280.
-- 수온, 20 °C 등온선 깊이(`iso20`), 혼합층(= iso20의 절반 = 수온 약층 시작 깊이), 해수면, 용승, 워커 순환, 기압이 모두 `model.js`에서 `s`로 계산된다. 수치를 바꾸려면 `model.js`의 표(`ANOM_NINO`, `ANOM_NINA`, `iso20`의 서·동 깊이 등)만 고치면 세 탭에 모두 반영된다. 수치를 바꾸면 README의 「과학적 근거와 단순화」도 함께 고친다.
-- 엘니뇨·라니냐 판정은 `nino34(s)`(엘니뇨 감시 구역 평균 편차)의 ±0.5 °C 기준(`phase`).
-- ③의 시계열(`EVENTS`, `seriesState`)은 **실제 관측 자료가 아닌 모식값**이다. 화면과 문서에서 관측 자료처럼 보이게 하지 않는다.
+- 수온(단면: GODAS 연직 분포, 표층 값: ERSST), 20 °C 등온선 깊이(`iso20`), 혼합층(표층보다 0.5 °C 낮아지는 깊이 = 수온 약층 시작 깊이), 해수면(iso20으로 환산), 용승, 워커 순환, 기압이 모두 `model.js`에서 `s`로 계산된다. 자료나 모형 상수를 바꾸면 README의 「과학적 근거와 단순화」 수치도 함께 고친다.
+- 모형 그림의 엘니뇨·라니냐 딱지는 `nino34(s)`(실측 합성 +2.31/−1.26 °C에 맞춤)의 ±0.5 °C 기준(`phase`). 실제 달을 보여 줄 때(① 재생, ③ 그래프)는 NOAA 공식 판정(`monthly.state`, RONI)을 쓴다.
+- ③의 시계열은 1991~2024 **실측 자료**다(Niño 3.4 편차 ERSST, SOI·다윈·타히티 기압 NOAA CPC, 음영 RONI 공식 판정). 달을 고르면 지도는 `E.stateFromNino34`로, 기압 시소는 그 달의 실제 기압 편차(앞뒤 1개월 평균)로 바뀐다. 상태 버튼을 누르면 모형 합성값으로 돌아간다.
 
 ### 탭 모듈과 화면 갱신
 
@@ -70,6 +73,7 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 - 무역풍은 1991~2024 전 기간 NCEP/NCAR R1 하나로 가공한다. 다른 재분석(ERA5 등)과 시기별로 섞지 않는다. R1을 못 쓰게 되면 몰래 바꾸지 말고 사용자에게 Copernicus CDS 사용을 제안한다.
 - 평년은 1991~2020 같은 달 평균을 직접 계산(30년 중 24년 이상 있는 칸만). 편차는 웹앱이 '실제 값 − 평년값'으로 계산한다.
 - 자료 다시 만들기: `cd pipeline && ./run_all.sh` (원자료는 `pipeline/raw/`, 중간 자료는 `pipeline/work/`, 둘 다 저장소에 넣지 않음). 검증 결과 `pipeline/validation/REPORT.md`도 함께 갱신해 커밋한다.
+- 루트 시뮬레이터의 보정 자료도 이 자료에서 나온다: `pipeline/build_sim.py` → `js/obs-calib.js` (`run_all.sh` 마지막 단계). 자료를 다시 만들면 이 스크립트도 다시 돌리고 루트 앱을 점검한다.
 - 화면 코드: `observatory/js/` — `data.js`(window.OBS, 자료·편차·20 ℃ 등온선) → `colors.js`(고정 색 범위) → `map.js` / `section.js` / `series.js` → `app.js`. 지도 해안선은 루트의 `js/land.js`를 쓴다. ES5 문법 유지.
 - `fetch`로 자료를 읽으므로 브라우저 확인은 반드시 로컬 서버로 한다. 같은 Playwright 점검(화면 크기 5종, 밝은·어두운 테마, 콘솔 오류·404·가로 넘침)을 `observatory/`에도 한다.
 - 단면 위도 평균은 2°S~2°N 위도 격자 12개 중 값이 있는 해양 격자만 쓴다(유효 0개면 결측, 보간·생성 금지). 해양 격자 수는 `meta.grids.section.ocean_count`, 그 달 원자료 결측으로 달라진 칸은 사례 파일 `section_count_diff`에 있고 `OBS.secCount(ym)`로 읽는다. 6개 미만 칸은 빗금(대표성 낮음).
@@ -81,7 +85,7 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 
 - 통합과학용. 지구과학 heat-budget-lab(지구 열수지 탐구실)처럼 캐릭터(무역풍·서태평양 바다·동태평양 바다·구름·페루 어부) 대화로 진행한다. 말투는 친근하되 과한 감탄사·유아적 표현은 피한다.
 - **교과 범위**: 통합과학에 없는 남방진동·워커 순환이라는 용어는 화면·대사에 쓰지 않는다(공기의 오르내림·구름·비는 그림과 쉬운 말로만). 라니냐도 교과서에 없으므로 마지막 '도전' 단계에서 예측한 뒤 이름만 알려 준다. 용어는 실측자료 탐구실과 같게 '수온약층'(붙여 씀)을 쓴다.
-- 읽는 순서: `../js/model.js` → `../js/draw.js` → `story/js/script.js`(window.STORY: 캐릭터 `CH`, 대본 `STEPS`) → `story/js/story.js`(그림·그림 위 캐릭터·대화 진행). 색·머리·카드·푸터는 `../css/style.css`, 이 페이지만의 모양은 `story/css/story.css`.
+- 읽는 순서: `../js/obs-calib.js` → `../js/model.js` → `../js/draw.js` → `story/js/script.js`(window.STORY: 캐릭터 `CH`, 대본 `STEPS`) → `story/js/story.js`(그림·그림 위 캐릭터·대화 진행). 색·머리·카드·푸터는 `../css/style.css`, 이 페이지만의 모양은 `story/css/story.css`.
 - 대사를 고칠 때는 `script.js`의 `STEPS`만 고친다. 대사 속성: `who`, `t`, `s`(상태, 생략하면 앞 대사 그대로), `badge`, `show`(누적 그림 층), `hl`(밝게 비출 곳), `key`, `mood`, `ask`(예측: 고르기 전에는 '다음'이 잠기고, 고르면 `reveal` 상태로 바뀜). 그림 수치는 `model.js`가 정하므로 대사의 수치·방향이 모형과 맞는지 확인한다.
 - 그림 위 캐릭터는 캔버스 위 HTML(`.cast .actor`)이다. 공통 css가 640px 이하에서 `.stage .badge`를 그림 밖으로 빼므로 `story.css`에서 되돌려 두었다(되돌리지 않으면 캐릭터 위치가 어긋남). 대화 칸의 `.talk`과 겹치지 않게 말하는 캐릭터 표시는 `.speaking`이다.
 - 검사: 위 eslint 명령에 `story/js/*.js`를 더한다. 같은 Playwright 점검(화면 크기 5종, 밝은·어두운 테마, 콘솔 오류·404·가로 넘침)을 하며, STEP 0부터 마지막까지 예측 문제를 고르며 끝까지 넘겨 본다.
