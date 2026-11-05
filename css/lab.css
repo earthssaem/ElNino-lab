@@ -1,0 +1,153 @@
+/* 엘니뇨·라니냐 탐구실 공통: 학습 페이지 맨 위 탐구실 막대(.labbar)와 첫 화면(.hub)
+   막대는 세 학습 페이지(색 토큰이 서로 다름)에 똑같이 붙으므로 자기 색 토큰(--lab-*)을 쓴다.
+   어두운 테마 값은 media 블록과 :root[data-theme="dark"] 두 곳에 똑같이 둔다. */
+:root {
+  --lab-bg: #ffffff;
+  --lab-ink: #0f1d26;
+  --lab-ink-2: #3a4e5b;
+  --lab-muted: #647884;
+  --lab-line: #d3dde2;
+  --lab-hover: #eef3f5;
+  --lab-accent: #0b6d77;
+  --lab-accent-soft: #d6ecee;
+  --lab-on-accent: #ffffff;
+  --lab-shadow: 0 10px 30px rgba(15, 29, 38, .14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lab-bg: #0f1c24;
+    --lab-ink: #e2ecf0;
+    --lab-ink-2: #a7bac4;
+    --lab-muted: #7c909b;
+    --lab-line: #22343e;
+    --lab-hover: #14242d;
+    --lab-accent: #46b8c1;
+    --lab-accent-soft: #143639;
+    --lab-on-accent: #04201f;
+    --lab-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  }
+}
+:root[data-theme="dark"] {
+  --lab-bg: #0f1c24;
+  --lab-ink: #e2ecf0;
+  --lab-ink-2: #a7bac4;
+  --lab-muted: #7c909b;
+  --lab-line: #22343e;
+  --lab-hover: #14242d;
+  --lab-accent: #46b8c1;
+  --lab-accent-soft: #143639;
+  --lab-on-accent: #04201f;
+  --lab-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+}
+
+/* ── 탐구실 막대 ── */
+.labbar {
+  position: relative; z-index: 50;
+  background: var(--lab-bg); color: var(--lab-ink);
+  border-bottom: 1px solid var(--lab-line);
+  font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  font-size: 14px; line-height: 1.4;
+}
+.labbar-in { max-width: 1280px; margin: 0 auto; padding: 6px 20px; display: flex; align-items: center; gap: 8px; min-height: 48px; }
+html[data-lab="data"] .labbar-in { max-width: 1560px; }
+.labbar svg { width: 18px; height: 18px; flex: none; }
+.lb-home {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px 0 6px; margin-left: -6px;
+  border-radius: 10px; color: inherit; text-decoration: none; font-weight: 700;
+}
+.lb-home:hover { background: var(--lab-hover); }
+.lb-home .lb-menu { display: none; }
+.lb-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.lb-dd { position: relative; }
+.lb-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px;
+  border: 1px solid var(--lab-line); border-radius: 10px;
+  background: var(--lab-bg); color: var(--lab-ink-2);
+  font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.lb-btn:hover, .lb-btn[aria-expanded="true"] { background: var(--lab-hover); color: var(--lab-ink); }
+.lb-caret { font-size: 11px; color: var(--lab-muted); }
+.lb-short { display: none; }
+.lb-subj { background: var(--lab-accent); border-color: var(--lab-accent); color: var(--lab-on-accent); }
+.lb-subj .lb-caret { color: inherit; opacity: .8; }
+.lb-subj:hover, .lb-subj[aria-expanded="true"] { background: var(--lab-accent); color: var(--lab-on-accent); filter: brightness(1.08); }
+.lb-subj.none { background: var(--lab-bg); color: var(--lab-accent); border-color: var(--lab-accent); }
+.lb-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; min-width: 220px; padding: 6px;
+  background: var(--lab-bg); border: 1px solid var(--lab-line); border-radius: 12px; box-shadow: var(--lab-shadow);
+}
+.lb-pop.right { left: auto; right: 0; }
+.lb-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--lab-ink);
+  font: inherit; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer;
+}
+.lb-item:hover, .lb-item:focus-visible { background: var(--lab-hover); }
+.lb-item.here { color: var(--lab-accent); }
+.lb-item small { margin-left: auto; font-size: 11.5px; font-weight: 600; color: var(--lab-muted); }
+.lb-dot { width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid var(--lab-muted); }
+.lb-item[aria-checked="true"] { color: var(--lab-accent); }
+.lb-item[aria-checked="true"] .lb-dot { border-color: var(--lab-accent); box-shadow: inset 0 0 0 3px var(--lab-bg); background: var(--lab-accent); }
+.lb-note { margin: 4px 10px 4px; font-size: 12px; color: var(--lab-muted); }
+.labbar :focus-visible { outline: 2.5px solid var(--lab-accent); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .labbar-in { padding: 4px 12px; gap: 6px; }
+  .lb-home .lb-name { display: none; }
+  .lb-home .lb-menu { display: inline; }
+  .lb-btn { padding: 0 10px; }
+  .lb-btn .lb-long { display: none; }
+  .lb-btn .lb-short { display: inline; }
+}
+
+/* ── 첫 화면: 과목 선택 · 학습 방법 ── */
+.hub main { max-width: 1040px; margin: 0 auto; }
+.hub-q { margin: 18px 0 6px; text-align: center; font-family: var(--font-display); font-weight: 400; font-size: clamp(24px, 3.4vw, 34px); line-height: 1.25; }
+.hub-sub { margin: 0 0 22px; text-align: center; color: var(--muted); font-size: 15px; }
+.subj-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.subj-card, .method-card {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  padding: 22px 22px 20px; border: 1.5px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink); text-decoration: none;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.subj-card:hover, .method-card:hover { border-color: var(--accent); box-shadow: 0 6px 20px rgba(11, 109, 119, .14); transform: translateY(-2px); }
+.subj-card:focus-visible, .method-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.subj-card h3, .method-card h3 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.3px; }
+.subj-card p, .method-card p { margin: 0; color: var(--ink-2); font-size: 15.5px; line-height: 1.55; word-break: keep-all; }
+.subj-card ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.subj-card li { padding: 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.subj-card .go, .method-card .go { margin-top: auto; padding-top: 6px; font-weight: 700; color: var(--accent); }
+.subj-card .badge-s { align-self: flex-start; padding: 3px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 700; }
+.subj-card.current { border-color: var(--accent); }
+
+.menu-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; margin: 14px 0 20px; text-align: center; }
+.menu-head .hub-q { flex-basis: 100%; margin: 0; }
+.menu-subj { display: inline-flex; align-items: center; padding: 4px 14px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 15px; }
+.menu-change { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink-2); font-weight: 600; font-size: 14px; }
+.menu-change:hover { border-color: var(--accent); color: var(--ink); }
+.method-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.method-card .ic { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: var(--accent-soft); color: var(--accent); }
+.method-card .ic svg { width: 30px; height: 30px; }
+.method-card h3 { font-size: 21px; }
+.hub-note { margin: 18px 0 0; text-align: center; color: var(--muted); font-size: 13.5px; }
+@media (max-width: 860px) {
+  .method-cards { grid-template-columns: minmax(0, 1fr); }
+  .method-card { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 14px; padding: 16px; }
+  .method-card .txt { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .method-card .go { display: none; }
+}
+@media (max-width: 640px) {
+  .subj-cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .subj-card { padding: 18px 16px 16px; gap: 8px; }
+  .subj-card h3 { font-size: 22px; }
+  .subj-card p { font-size: 15px; }
+  .hub-q { margin-top: 8px; }
+  .hub-sub { margin-bottom: 14px; }
+}
+@media (min-width: 861px) {
+  .method-card .txt { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .subj-card, .method-card { transition: none; }
+  .subj-card:hover, .method-card:hover { transform: none; }
+}

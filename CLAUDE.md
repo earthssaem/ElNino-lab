@@ -11,9 +11,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-저장소에 웹앱이 세 개 있다. 루트(`/`)는 아래에 설명한 개념 시뮬레이터, `observatory/`는 실제 관측·재분석 자료를 보여 주는 「엘니뇨·라니냐 실측자료 탐구실」(아래 「실측자료 탐구실」 절), `story/`는 캐릭터 대화로 배우는 통합과학용 「대화로 배우는 엘니뇨」다(아래 「대화로 배우는 엘니뇨」 절).
+하나의 「엘니뇨·라니냐 탐구실」 안에 학습 방법 세 가지가 있다. 루트(`/`, `index.html`)는 **첫 화면**(과목 선택 → 학습 방법 메뉴, 아래 「탐구실 첫 화면과 과목 선택」 절), `simulation/`은 아래에 설명한 **개념 시뮬레이션**, `observatory/`는 실제 관측·재분석 자료를 보여 주는 **실측자료 탐구**(「엘니뇨·라니냐 실측자료 탐구실」, 아래 「실측자료 탐구실」 절), `story/`는 캐릭터 대화로 배우는 **대화형 학습**(「대화로 배우는 엘니뇨」, 아래 「대화로 배우는 엘니뇨」 절)이다.
+과목(통합과학·지구과학)에 따라 세 학습 방법의 내용 수준을 나누는 개편을 단계별로 진행 중이다. 진행표와 설계는 `docs/subject-modes.md`에 있고, 단계를 끝낼 때마다 갱신한다. 한 번의 요청에서는 요청받은 단계만 구현하고 멈춘다.
 
-지구과학Ⅰ 「대기와 해양의 상호 작용」(엘니뇨·라니냐, 남방진동) 수업용 정적 웹앱이다. 빌드 도구, 패키지, 테스트 코드가 없고 `index.html`을 브라우저로 열면 바로 동작한다. 글은 최소로 하고 그림과 조작 위주로 만든다. 평상시·엘니뇨·라니냐는 실측 자료로 맞춘 시뮬레이션이다(아래 「상태 변수」). 용어는 교과서 용어(수온 약층, 혼합층, 용승, 엘니뇨 감시 구역, 남방진동 지수, 워커 순환)를 따른다.
+개념 시뮬레이션은 지구과학Ⅰ 「대기와 해양의 상호 작용」(엘니뇨·라니냐, 남방진동) 수업용 정적 웹앱이다. 빌드 도구, 패키지, 테스트 코드가 없고 `simulation/index.html`을 브라우저로 열면 바로 동작한다. 글은 최소로 하고 그림과 조작 위주로 만든다. 평상시·엘니뇨·라니냐는 실측 자료로 맞춘 시뮬레이션이다(아래 「상태 변수」). 용어는 교과서 용어(수온 약층, 혼합층, 용승, 엘니뇨 감시 구역, 남방진동 지수, 워커 순환)를 따른다.
 
 ## 명령
 
@@ -23,21 +24,21 @@ npx http-server -p 8765 -c-1 .
 
 # 문법·미정의 변수 검사 (설정 파일 없음)
 npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
-  --global window,document,getComputedStyle,localStorage,history,location,performance,requestAnimationFrame,ResizeObserver,MutationObserver,Map,Uint8ClampedArray \
+  --global window,document,getComputedStyle,localStorage,history,location,performance,requestAnimationFrame,ResizeObserver,MutationObserver,Map,Uint8ClampedArray,CustomEvent \
   js/*.js
 ```
 
-자동 테스트가 없으므로 바꾼 뒤에는 Playwright(Chromium)로 직접 확인한다. 휴대폰(375px), 태블릿(820px), 노트북(1366×768), 교실 프로젝터(1280×720, 1024×768) 크기와 밝은·어두운 테마(`colorScheme`)에서 세 탭(`#wind`, `#compare`, `#so`)을 열어 콘솔 오류, 404, 가로 넘침(`scrollWidth > clientWidth`)이 없는지 본다. 휴대폰 터치 스크롤은 CDP `Input.synthesizeScrollGesture`로는 헤드리스에서 재현되지 않으므로 `Input.dispatchTouchEvent`를 쓴다.
+자동 테스트가 없으므로 바꾼 뒤에는 Playwright(Chromium)로 직접 확인한다. 휴대폰(375px), 태블릿(820px), 노트북(1366×768), 교실 프로젝터(1280×720, 1024×768) 크기와 밝은·어두운 테마(`colorScheme`)에서 첫 화면(과목 선택·학습 메뉴)과 개념 시뮬레이션의 세 탭(`simulation/#wind`, `#compare`, `#so`)을 열어 콘솔 오류, 404, 가로 넘침(`scrollWidth > clientWidth`)이 없는지 본다. 탐구실 막대의 메뉴를 열었을 때 화면 밖으로 나가지 않는지도 본다. 휴대폰 터치 스크롤은 CDP `Input.synthesizeScrollGesture`로는 헤드리스에서 재현되지 않으므로 `Input.dispatchTouchEvent`를 쓴다.
 
 ## 구조
 
-모듈 시스템 없이 `<script>` 태그로 읽고 전역 객체로 연결한다. **읽는 순서가 의존 순서**다(`index.html` 아래쪽):
+모듈 시스템 없이 `<script>` 태그로 읽고 전역 객체로 연결한다. **읽는 순서가 의존 순서**다(`simulation/index.html`. 머리에서 `../js/lab.js`, 아래쪽에서 나머지를 `../js/`로 읽음):
 
 `land.js`(`window.ENSO_LAND`) → `obs-calib.js`(`window.ENSO_OBS`, 자동 생성) → `model.js`(`window.ENSO`) → `draw.js`(`window.ENSODraw`) → `tab-wind.js` / `tab-compare.js` / `tab-so.js`(`window.TabWind` 등) → `app.js`
 
 ### 상태 변수 `s` 하나로 모든 값이 정해진다
 
-- `s` ∈ [−1, 1]: −1 엘니뇨(실제 사례 3개 합성) · 0 평상시(1991~2020 연평균) · +1 라니냐(실제 사례 2개 합성). 사이 값은 평년 + 합성 편차 × |s|. 루트 탭의 엘니뇨·라니냐 버튼은 ±1(사례 평균), `story/`는 ±0.85.
+- `s` ∈ [−1, 1]: −1 엘니뇨(실제 사례 3개 합성) · 0 평상시(1991~2020 연평균) · +1 라니냐(실제 사례 2개 합성). 사이 값은 평년 + 합성 편차 × |s|. 개념 시뮬레이션의 엘니뇨·라니냐 버튼은 ±1(사례 평균), `story/`는 ±0.85.
 - 평년값·합성 편차·바람·강수·기압·1991~2024 월별 지수는 `js/obs-calib.js`(`pipeline/build_sim.py`가 `observatory/data/`와 NOAA CPC 기압으로 생성)에서 읽는다. **이 파일을 손으로 고치거나 값을 지어내지 않는다.** 바꾸려면 스크립트를 다시 돌린다.
 - `s`는 숫자 또는 경도별 상태 객체 `{w, h(lon), t(lon), mean, dev, key}`다. 모형 함수는 둘 다 받는다. 캐시 키는 `E.skey(s)`, 평상시 여부는 `E.near0(s)`, 바람은 `E.sW(s)`로 꺼낸다(숫자 비교 `s < 0`, `s.toFixed`를 직접 쓰지 않는다).
 - ①은 `E.Ocean`이 시간(달)에 따라 바다를 움직인다: 무역풍 변화가 175°E에서 동쪽 60°/월·서쪽 20°/월로 퍼지고, 수온 약층 τ 0.7개월, 표층 수온 τ 1개월(`OC`). '움직임'이 꺼지면 바로 새 평형 상태로. '실제 무역풍으로 재생'은 `monthly.windAnom`(앞 3개월 평균)을 `E.windFromRatio`로 상태로 바꿔 쓴다.
@@ -60,6 +61,15 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 - 캔버스는 `D.theme()`로 CSS 변수를 읽어 캐시한다. 캔버스에 새 색을 쓰려면 CSS 변수(밝은·어두운 세 곳)를 추가하고 `D.theme()`에 연결한다. 테마가 바뀌면 `app.js`가 `D.invalidateTheme()`와 각 탭의 `redraw()`를 부른다.
 - 엘니뇨·라니냐·평상시 색 바탕 위의 글자는 `--on-phase`(밝은 테마 흰색, 어두운 테마 진한 색)를 쓴다.
 
+## 탐구실 첫 화면과 과목 선택 (`index.html`, `js/lab.js`, `css/lab.css`)
+
+- 과목은 `integrated`(통합과학) · `earth`(지구과학) 두 가지. `js/lab.js`(window.LAB)가 주소의 `?subject=`(있으면 우선하고 저장) → localStorage `enso-lab-subject` 순으로 읽는다. **서버로 보내지 않고, 로그인·개인정보 입력은 만들지 않는다.**
+- `lab.js`는 각 페이지 `<head>`에서 읽혀 곧바로 `<html data-subject>`를 붙인다. 과목별 내용은 이 속성(css)과 `window`의 `lab:subject` 이벤트(`detail.subject`) 또는 `LAB.onChange(fn)`로 바꾼다. 과목을 바꿔도 페이지를 옮기거나 학습 상태를 초기화하지 않는다. 주소에 `?subject=`가 있으면 바꾼 과목으로 고쳐 둔다.
+- 학습 페이지는 `<html data-lab="story|sim|data">`를 붙이면 `lab.js`가 `body` 맨 앞에 탐구실 막대(`nav.labbar`: 학습 메뉴 링크 · 학습 방법 메뉴 · 과목 메뉴)를 넣는다. 막대는 세 페이지의 색 토큰이 달라 자기 토큰(`--lab-*`, 밝은·어두운 세 곳)을 쓴다. 메뉴는 Esc로 닫히고 ↓/↑로 항목을 옮긴다.
+- 첫 화면: 저장된 과목이 없으면 과목 선택(카드 두 장), 있으면 그 과목의 학습 방법 메뉴(대화형·시뮬레이션·실측자료 카드, 설명은 과목별 `DESC`). 과목 선택이 학습 방법으로 강제 이동시키지 않는다. 제목을 누르면 학습 메뉴(과목이 없으면 과목 선택)로.
+- 바로 가기 주소: `/?subject=integrated|earth`(학습 메뉴), `&learn=story|sim|data`(그 학습 페이지로 `location.replace`). 예전 주소 `/#wind`, `/#compare`, `/#so`는 `simulation/`의 같은 탭으로 옮긴다. 학습 페이지 주소는 `LAB.url(id, subject)`, 첫 화면 주소는 `LAB.homeUrl()`로 만든다.
+- 학습 페이지끼리의 상대 경로는 `../story/`, `../simulation/`, `../observatory/`, 첫 화면은 `../`다.
+
 ## 코드 관례
 
 - 기존 코드처럼 ES5 문법(`var`, `function`, 즉시 실행 함수 + `'use strict'`)을 유지한다. 빌드 단계가 없다.
@@ -74,6 +84,7 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 - 평년은 1991~2020 같은 달 평균을 직접 계산(30년 중 24년 이상 있는 칸만). 편차는 웹앱이 '실제 값 − 평년값'으로 계산한다.
 - 자료 다시 만들기: `cd pipeline && ./run_all.sh` (원자료는 `pipeline/raw/`, 중간 자료는 `pipeline/work/`, 둘 다 저장소에 넣지 않음). 검증 결과 `pipeline/validation/REPORT.md`도 함께 갱신해 커밋한다.
 - 루트 시뮬레이터의 보정 자료도 이 자료에서 나온다: `pipeline/build_sim.py` → `js/obs-calib.js` (`run_all.sh` 마지막 단계). 자료를 다시 만들면 이 스크립트도 다시 돌리고 루트 앱을 점검한다.
+- 머리에서 `../css/lab.css`와 `../js/lab.js`(과목 상태·탐구실 막대)를 읽는다.
 - 화면 코드: `observatory/js/` — `data.js`(window.OBS, 자료·편차·20 ℃ 등온선) → `colors.js`(고정 색 범위) → `map.js` / `section.js` / `series.js` → `app.js`. 지도 해안선은 루트의 `js/land.js`를 쓴다. ES5 문법 유지.
 - `fetch`로 자료를 읽으므로 브라우저 확인은 반드시 로컬 서버로 한다. 같은 Playwright 점검(화면 크기 5종, 밝은·어두운 테마, 콘솔 오류·404·가로 넘침)을 `observatory/`에도 한다.
 - 단면 위도 평균은 2°S~2°N 위도 격자 12개 중 값이 있는 해양 격자만 쓴다(유효 0개면 결측, 보간·생성 금지). 해양 격자 수는 `meta.grids.section.ocean_count`, 그 달 원자료 결측으로 달라진 칸은 사례 파일 `section_count_diff`에 있고 `OBS.secCount(ym)`로 읽는다. 6개 미만 칸은 빗금(대표성 낮음).
@@ -85,7 +96,7 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 
 - 통합과학용. 지구과학 heat-budget-lab(지구 열수지 탐구실)처럼 캐릭터(무역풍·서태평양 바다·동태평양 바다·구름·페루 어부) 대화로 진행한다. 말투는 친근하되 과한 감탄사·유아적 표현은 피한다.
 - **교과 범위**: 통합과학에 없는 남방진동·워커 순환이라는 용어는 화면·대사에 쓰지 않는다(공기의 오르내림·구름·비는 그림과 쉬운 말로만). 라니냐도 교과서에 없으므로 마지막 '도전' 단계에서 예측한 뒤 이름만 알려 준다. 용어는 실측자료 탐구실과 같게 '수온약층'(붙여 씀)을 쓴다.
-- 읽는 순서: `../js/obs-calib.js` → `../js/model.js` → `../js/draw.js` → `story/js/script.js`(window.STORY: 캐릭터 `CH`, 대본 `STEPS`) → `story/js/story.js`(그림·그림 위 캐릭터·대화 진행). 색·머리·카드·푸터는 `../css/style.css`, 이 페이지만의 모양은 `story/css/story.css`.
+- 머리에서 `../js/lab.js`(과목 상태·탐구실 막대)를 읽는다. 읽는 순서: `../js/obs-calib.js` → `../js/model.js` → `../js/draw.js` → `story/js/script.js`(window.STORY: 캐릭터 `CH`, 대본 `STEPS`) → `story/js/story.js`(그림·그림 위 캐릭터·대화 진행). 색·머리·카드·푸터는 `../css/style.css`, 이 페이지만의 모양은 `story/css/story.css`.
 - 대사를 고칠 때는 `script.js`의 `STEPS`만 고친다. 대사 속성: `who`, `t`, `s`(상태, 생략하면 앞 대사 그대로), `badge`, `show`(누적 그림 층), `hl`(밝게 비출 곳), `key`, `mood`, `ask`(예측: 고르기 전에는 '다음'이 잠기고, 고르면 `reveal` 상태로 바뀜). 그림 수치는 `model.js`가 정하므로 대사의 수치·방향이 모형과 맞는지 확인한다.
 - 그림 위 캐릭터는 캔버스 위 HTML(`.cast .actor`)이다. 공통 css가 640px 이하에서 `.stage .badge`를 그림 밖으로 빼므로 `story.css`에서 되돌려 두었다(되돌리지 않으면 캐릭터 위치가 어긋남). 대화 칸의 `.talk`과 겹치지 않게 말하는 캐릭터 표시는 `.speaking`이다.
 - 검사: 위 eslint 명령에 `story/js/*.js`를 더한다. 같은 Playwright 점검(화면 크기 5종, 밝은·어두운 테마, 콘솔 오류·404·가로 넘침)을 하며, STEP 0부터 마지막까지 예측 문제를 고르며 끝까지 넘겨 본다.
