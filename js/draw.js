@@ -316,7 +316,7 @@
 
   // 등온선
   D.drawIsotherms = function (ctx, L, s, o) {
-    var levels = [28, 24, 20, 16, 12];
+    var levels = o.skip20 ? [28, 24, 16, 12] : [28, 24, 20, 16, 12];
     var step = 4;
     ctx.save();
     ctx.lineWidth = 1;
@@ -363,11 +363,42 @@
     bot.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
     ctx.setLineDash([3, 4]); ctx.lineWidth = 1; ctx.strokeStyle = line; ctx.globalAlpha = 0.6; ctx.stroke();
     ctx.globalAlpha = 1; ctx.setLineDash([]);
-    ctx.beginPath();
-    top.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
-    ctx.lineWidth = 2.2 * Math.max(0.8, L.u); ctx.strokeStyle = line; ctx.stroke();
+    if (o.topLine !== false) {
+      ctx.beginPath();
+      top.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
+      ctx.lineWidth = (o.thin ? 1.3 : 2.2) * Math.max(0.8, L.u); ctx.strokeStyle = line; ctx.globalAlpha = o.thin ? 0.85 : 1; ctx.stroke();
+    }
     ctx.restore();
     return { top: top, bot: bot };
+  };
+
+  // 20 °C 등온선(수온 약층 깊이의 대표 지표): 굵은 실선. 같은 수온장에서 계산한 깊이를 잇는다
+  function iso20Path(ctx, L, s) {
+    var pen = false;
+    for (var x = L.ox0 - L.landW * 0.7; x <= L.ox1 + L.landE * 0.7; x += 3) {
+      var z = E.depthOf(clamp(L.xToLon(x), E.LON_W, E.LON_E), 20, s, L.zMax);
+      if (z == null) { pen = false; continue; }
+      if (pen) ctx.lineTo(x, L.zToY(z)); else ctx.moveTo(x, L.zToY(z));
+      pen = true;
+    }
+  }
+  D.iso20Path = iso20Path;
+  D.drawIso20 = function (ctx, L, s, o) {
+    o = o || {};
+    var anom = o.mode === 'anom';
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); iso20Path(ctx, L, s);
+    ctx.lineWidth = 5.4 * Math.max(0.75, L.u); ctx.strokeStyle = anom ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.9)'; ctx.stroke();
+    ctx.lineWidth = 2.8 * Math.max(0.75, L.u); ctx.strokeStyle = '#0b1a33'; ctx.stroke();
+    ctx.restore();
+    if (o.label) {
+      var lon = o.labelLon || 214, z = E.depthOf(lon, 20, s, L.zMax);
+      if (z != null) {
+        var fs = clamp(10.5 * L.u + 3, 10, 13.5);
+        D.pill(ctx, o.label, L.lonToX(lon), L.zToY(z) + fs * 1.5, { size: fs - 0.5, bg: '#0b1a33', fg: '#ffffff' });
+      }
+    }
   };
 
   // 평상시 비교선 (점선)
@@ -382,15 +413,13 @@
     ctx.beginPath();
     surfacePath(ctx, L, 0, L.ox0, L.ox1);
     ctx.strokeStyle = t.ink; ctx.globalAlpha = 0.7; ctx.stroke();
-    // 평상시 수온 약층 시작 깊이
-    ctx.globalAlpha = 0.85;
-    ctx.strokeStyle = 'rgba(12,18,26,0.85)';
-    ctx.beginPath();
-    for (var x = L.ox0; x <= L.ox1 + 0.1; x += 4) {
-      var y = L.zToY(E.mixedLayer(L.xToLon(x), 0));
-      if (x === L.ox0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
+    // 평상시 20 °C 등온선
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); iso20Path(ctx, L, 0);
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3.6; ctx.stroke();
+    ctx.strokeStyle = 'rgba(12,18,26,0.9)'; ctx.lineWidth = 1.8; ctx.stroke();
     ctx.restore();
   };
 

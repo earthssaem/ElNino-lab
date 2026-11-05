@@ -1,19 +1,25 @@
-/* 탭 전환, 화면 갱신 루프, 테마 변화 감지 */
+/* 탭 전환, 화면 갱신 루프, 테마 변화 감지, 과목(통합과학·지구과학) 모드
+ * 과목은 ../js/lab.js(window.LAB)가 정한다. 통합과학은 ③ 탭을 숨기고, 각 탭 모듈의 subject(s)로 화면 범위를 바꾼다.
+ * 과목이 없으면 지구과학(전체 기능)으로 보여 준다. */
 (function () {
   'use strict';
   var D = window.ENSODraw;
   var TABS = [
     { key: 'wind', btn: 'tabbtn-wind', panel: 'tab-wind', mod: window.TabWind },
     { key: 'compare', btn: 'tabbtn-compare', panel: 'tab-compare', mod: window.TabCompare },
-    { key: 'so', btn: 'tabbtn-so', panel: 'tab-so', mod: window.TabSO }
+    { key: 'so', btn: 'tabbtn-so', panel: 'tab-so', mod: window.TabSO, earthOnly: true }
   ];
+  var LAB = window.LAB;
+  function subject() { return (LAB && LAB.get()) === 'integrated' ? 'integrated' : 'earth'; }
+  function shown(i) { return !(TABS[i].earthOnly && subject() === 'integrated'); }
   var active = 0;
   var reduced = false;
   try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* 무시 */ }
 
-  TABS.forEach(function (t) { t.mod.init({ reducedMotion: reduced }); });
+  TABS.forEach(function (t) { t.mod.init({ reducedMotion: reduced, subject: subject() }); });
 
   function select(i, focus) {
+    if (!shown(i)) i = 0;   // 통합과학에서 숨긴 탭이면 ① 로
     document.documentElement.removeAttribute('data-tab'); // 처음 표시(html[data-tab], index.html 머리 스크립트)를 거두고 hidden 속성으로만 보여 줌
     TABS.forEach(function (t, k) {
       var on = k === i;
@@ -35,11 +41,11 @@
     var b = document.getElementById(t.btn);
     b.addEventListener('click', function () { select(i); });
     b.addEventListener('keydown', function (e) {
-      var n = null;
-      if (e.key === 'ArrowRight') n = (i + 1) % TABS.length;
-      else if (e.key === 'ArrowLeft') n = (i + TABS.length - 1) % TABS.length;
-      else if (e.key === 'Home') n = 0;
-      else if (e.key === 'End') n = TABS.length - 1;
+      var vis = TABS.map(function (q, k) { return k; }).filter(shown), p = vis.indexOf(i), n = null;
+      if (e.key === 'ArrowRight') n = vis[(p + 1) % vis.length];
+      else if (e.key === 'ArrowLeft') n = vis[(p + vis.length - 1) % vis.length];
+      else if (e.key === 'Home') n = vis[0];
+      else if (e.key === 'End') n = vis[vis.length - 1];
       if (n != null) { e.preventDefault(); select(n, true); }
     });
   });
@@ -49,7 +55,16 @@
   // DOMContentLoaded 를 기다리지 않고 바로 탭 버튼과 같은 select 로 연다(그 사이 ① 이 그려질 틈을 만들지 않음).
   var first = 0, want = (location.hash || '').replace('#', '');
   if (!want) { try { want = localStorage.getItem('enso-lab-tab') || ''; } catch (e) { want = ''; } }
-  TABS.forEach(function (t, i) { if (t.key === want) first = i; });
+  TABS.forEach(function (t, i) { if (t.key === want && shown(i)) first = i; });
+  // 과목에 따라 탭 버튼을 숨기고 각 탭의 범위를 바꾼다(학습 중 과목을 바꿔도 이 페이지에 그대로 머문다)
+  function applySubject() {
+    var s = subject();
+    TABS.forEach(function (t, i) { document.getElementById(t.btn).hidden = !shown(i); });
+    TABS.forEach(function (t) { if (t.mod.subject) t.mod.subject(s); });
+    if (!shown(active)) select(0);
+  }
+  applySubject();
+  if (LAB) LAB.onChange(function () { applySubject(); D.invalidateTheme(); TABS.forEach(function (t) { t.mod.redraw(); }); });
   TABS.forEach(function (t, i) { if (i !== first) t.mod.hide(); });
   select(first);
   // 제목을 누르면 처음 화면으로: ① 무역풍 실험 탭 · 맨 위 (각 탭의 슬라이더·보기 설정·③ 그래프 위치는 그대로 둠)
@@ -60,7 +75,7 @@
   document.getElementById('homeLink').addEventListener('click', function (e) { e.preventDefault(); goHome(); });
   window.addEventListener('hashchange', function () {
     var h = (location.hash || '').replace('#', '') || 'wind';   // 주소의 # 뒤가 비면 ①
-    TABS.forEach(function (t, i) { if (t.key === h && i !== active) select(i); });
+    TABS.forEach(function (t, i) { if (t.key === h && i !== active) select(shown(i) ? i : 0); });   // 통합과학에서 숨긴 탭 주소면 ① 로
   });
 
   // 테마(밝게/어둡게)가 바뀌면 색을 다시 읽는다

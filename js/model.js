@@ -61,8 +61,29 @@
   function sst(lon, s) { return SST0(lon) + sstAnom(lon, s); }
 
   /* ── 적도 수온 단면 (GODAS, 2°S~2°N 평균) ── */
-  var SEC = O.section, ZK = SEC.depth, NZ = ZK.length, NX = SEC.lon.length;
-  var X0 = SEC.lon[0], DX = SEC.lon[1] - SEC.lon[0];
+  var RAW = O.section, ZK = RAW.depth, NZ = ZK.length, NX = RAW.lon.length;
+  var X0 = RAW.lon[0], DX = RAW.lon[1] - RAW.lon[0];
+  /* 개념 시뮬레이션용 매끄러운 수온장: 실측 단면(평년·합성 편차)을 깊이마다 경도 방향으로 가우스 평활화(σ = SMOOTH_LON°)한다.
+     평활화는 선형이라 평상시·엘니뇨·라니냐와 그 사이 상태가 같은 방식으로 다듬어지고, 색과 등온선·20 °C 깊이·혼합층이
+     모두 이 수온장 하나에서 계산되어 서로 맞는다. 깊이 방향은 다듬지 않는다(수온 약층의 날카로움 유지). 실측 원값은 E.RAW_SECTION */
+  var SMOOTH_LON = 8;
+  function smoothLon(a, sig) {
+    var r = Math.ceil(sig * 2.5 / DX), w = [], out = new Array(a.length), k, i, j;
+    for (j = -r; j <= r; j++) w.push(Math.exp(-0.5 * Math.pow(j * DX / sig, 2)));
+    for (k = 0; k < NZ; k++) {
+      for (i = 0; i < NX; i++) {
+        var s = 0, ws = 0;
+        for (j = -r; j <= r; j++) {
+          var ii = i + j;
+          if (ii < 0 || ii >= NX) continue;   // 끝에서는 안쪽 값만으로 (가중치를 다시 나눔)
+          s += a[k * NX + ii] * w[j + r]; ws += w[j + r];
+        }
+        out[k * NX + i] = s / ws;
+      }
+    }
+    return out;
+  }
+  var SEC = SMOOTH_LON > 0 ? { T0: smoothLon(RAW.T0, SMOOTH_LON), dNino: smoothLon(RAW.dNino, SMOOTH_LON), dNina: smoothLon(RAW.dNina, SMOOTH_LON) } : RAW;
   // 깊이에 따라 표층 상태(t)와 아래쪽 상태(h)를 섞는 비율: 표층 0 → 60 m 아래 1
   var WZ = ZK.map(function (z) { return smooth((z - 5) / 55); });
   // 같은 상태·같은 경도(0.25° 단위)의 연직 수온은 한 번만 계산한다(그림 한 장에 수천 번 부름)
@@ -87,6 +108,9 @@
       var T0 = lerp(SEC.T0[j], SEC.T0[j + 1], a);
       var dn = lerp(SEC.dNino[j], SEC.dNino[j + 1], a), dl = lerp(SEC.dNina[j], SEC.dNina[j + 1], a);
       P[k] = T0 + (1 - WZ[k]) * blend(t, dn, dl) + WZ[k] * blend(h, dn, dl);
+      // 정적 안정: 시간 변화 중 아래쪽(h)이 표층(t)보다 먼저 데워질 때 위층보다 따뜻한 물이 생기지 않게 한다
+      // (평상시·엘니뇨·라니냐처럼 바다 전체가 같은 상태면 평활화한 수온장에 역전이 없어 아무것도 바뀌지 않음)
+      if (k && P[k] > P[k - 1]) P[k] = P[k - 1];
     }
     var D = cross(P, 20), M = cross(P, P[0] - 0.5);
     return { S: sst(lon, s), P: P, D: D == null ? ZK[NZ - 1] : D, M: M == null ? ZK[NZ - 1] : Math.max(M, 4), D15: cross(P, 15) || ZK[NZ - 1] };
@@ -252,6 +276,6 @@
     column: column, tempAt: tempAt,
     seaLevel: seaLevel, nino34: nino34, phase: phase, stateFromNino34: stateFromNino34,
     walker: walker, pressure: pressure, soi: soi,
-    Ocean: Ocean, OBS: O
+    Ocean: Ocean, OBS: O, RAW_SECTION: RAW, SMOOTH_LON: SMOOTH_LON
   };
 })();
