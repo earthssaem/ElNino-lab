@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>엘니뇨·라니냐 탐구실</title>
-<meta name="description" content="무역풍 세기에 따른 적도 태평양의 변화, 평상시·엘니뇨·라니냐 비교, 남방진동을 모식도로 탐구하는 웹앱">
+<meta name="description" content="무역풍 세기에 따라 몇 달에 걸쳐 바뀌는 적도 태평양, 평상시·엘니뇨·라니냐 비교, 남방진동을 실측 자료로 맞춘 시뮬레이션으로 탐구하는 웹앱">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='1' y='1' width='38' height='38' rx='10' fill='%230b6d77'/%3E%3Cg fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 15H18l3-3M18 15l3 3' stroke-width='2.2'/%3E%3Cpath d='M5 24C10 20 15 20 20 23S30 27 35 22' stroke-width='2.4'/%3E%3Cpath d='M5 30C12 28 22 29 35 26' stroke-width='1.6' opacity='.6'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,6 +43,7 @@
           <div class="stage" id="wind-stage">
             <canvas id="wind-canvas" role="img" aria-label="적도 태평양 연직 단면"></canvas>
             <div class="badge" id="wind-badge" data-phase="normal">평상시</div>
+            <div class="clock" id="wind-clock" aria-live="polite"></div>
           </div>
 
           <div class="controls">
@@ -57,9 +58,18 @@
               </div>
             </div>
             <div class="presets" role="group" aria-label="빠른 선택">
-              <button type="button" class="preset" data-target="-0.85" data-phase="nino" id="preset-nino">엘니뇨</button>
+              <button type="button" class="preset" data-target="-1" data-phase="nino" id="preset-nino">엘니뇨</button>
               <button type="button" class="preset" data-target="0" data-phase="normal" id="preset-normal">평상시</button>
-              <button type="button" class="preset" data-target="0.85" data-phase="nina" id="preset-nina">라니냐</button>
+              <button type="button" class="preset" data-target="1" data-phase="nina" id="preset-nina">라니냐</button>
+            </div>
+            <div class="replay" role="group" aria-label="실제 무역풍으로 재생">
+              <label class="replay-l" for="replay-case">실제 무역풍으로 재생</label>
+              <select id="replay-case"></select>
+              <button type="button" class="play" id="replay-play" aria-pressed="false">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path class="ic-play" d="M4 2.5 L13 8 L4 13.5 Z"/><path class="ic-pause" d="M4 2.5 H7 V13.5 H4 Z M9.5 2.5 H12.5 V13.5 H9.5 Z"/></svg>
+                <span>재생</span>
+              </button>
+              <div class="replay-bar" aria-hidden="true"><i id="replay-prog"></i></div>
             </div>
           </div>
 
@@ -120,6 +130,7 @@
             <div class="tile">
               <span class="tile-label">엘니뇨 감시 구역 수온 편차 <small>5°S~5°N, 170°W~120°W</small></span>
               <span class="tile-val mono"><span id="ro-nino">+0.0</span><small>°C</small></span>
+              <span class="tile-obs" id="ro-nino-obs" hidden></span>
               <div class="nino-scale" aria-hidden="true">
                 <span class="zone z-nina"></span><span class="zone z-normal"></span><span class="zone z-nino"></span>
                 <i id="ro-nino-mark"></i>
@@ -138,7 +149,7 @@
         <li data-k="tilt"><span class="c-q">수온 약층 기울기</span><span class="c-v"></span></li>
         <li data-k="sl"><span class="c-q">해수면 높이</span><span class="c-v"></span></li>
       </ol>
-      <p class="footnote">해수면 높이 차와 수심은 과장해서 그렸고, 수치는 관측값의 대략적인 크기에 맞춘 모식값입니다. 엘니뇨·라니냐는 이런 상태가 몇 달 이상 계속될 때를 말합니다.</p>
+      <p class="footnote">평상시(1991~2020 평년)와 엘니뇨·라니냐(실제 사례 평균)의 수온 단면·표층 수온·바람·강수는 실측 자료(GODAS, ERSST v5, NCEP/NCAR R1, GPCP)로 맞췄고, 그 사이 상태와 시간에 따른 변화는 단순한 모형으로 계산합니다. 무역풍을 바꾸면 바다는 몇 달에 걸쳐 따라 바뀝니다. 해수면 높이 차와 수심은 과장해서 그렸습니다. 엘니뇨·라니냐는 이런 상태가 몇 달 이상 계속될 때를 말합니다.</p>
     </section>
 
     <!-- ② 세 상태 비교 -->
@@ -162,15 +173,15 @@
 
       <div class="triptych">
         <figure class="card cmp" data-s="0">
-          <figcaption><span class="chip" data-phase="normal">평상시</span><span class="cap-sub">무역풍 보통</span></figcaption>
+          <figcaption><span class="chip" data-phase="normal">평상시</span><span class="cap-sub">1991~2020 평년</span></figcaption>
           <canvas id="cmp-0" role="img" aria-label="평상시 적도 태평양 단면"></canvas>
         </figure>
-        <figure class="card cmp" data-s="-0.85">
-          <figcaption><span class="chip" data-phase="nino">엘니뇨</span><span class="cap-sub">무역풍 약화</span></figcaption>
+        <figure class="card cmp" data-s="-1">
+          <figcaption><span class="chip" data-phase="nino">엘니뇨</span><span class="cap-sub">실제 사례 3개 평균</span></figcaption>
           <canvas id="cmp-1" role="img" aria-label="엘니뇨 때 적도 태평양 단면"></canvas>
         </figure>
-        <figure class="card cmp" data-s="0.85">
-          <figcaption><span class="chip" data-phase="nina">라니냐</span><span class="cap-sub">무역풍 강화</span></figcaption>
+        <figure class="card cmp" data-s="1">
+          <figcaption><span class="chip" data-phase="nina">라니냐</span><span class="cap-sub">실제 사례 2개 평균</span></figcaption>
           <canvas id="cmp-2" role="img" aria-label="라니냐 때 적도 태평양 단면"></canvas>
         </figure>
       </div>
@@ -205,8 +216,8 @@
       <div class="toolbar">
         <div class="seg" role="group" aria-label="상태 선택">
           <button type="button" id="so-normal" data-s="0" data-phase="normal" aria-pressed="true">평상시</button>
-          <button type="button" id="so-nino" data-s="-0.85" data-phase="nino" aria-pressed="false">엘니뇨</button>
-          <button type="button" id="so-nina" data-s="0.85" data-phase="nina" aria-pressed="false">라니냐</button>
+          <button type="button" id="so-nino" data-s="-1" data-phase="nino" aria-pressed="false">엘니뇨</button>
+          <button type="button" id="so-nina" data-s="1" data-phase="nina" aria-pressed="false">라니냐</button>
         </div>
         <button type="button" class="play" id="so-play" aria-pressed="false">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path class="ic-play" d="M4 2.5 L13 8 L4 13.5 Z"/><path class="ic-pause" d="M4 2.5 H7 V13.5 H4 Z M9.5 2.5 H12.5 V13.5 H9.5 Z"/></svg>
@@ -239,9 +250,9 @@
           </div>
         </div>
         <div class="card chart-card">
-          <h2>시간에 따른 변화 <span class="tag">모식 그래프</span></h2>
-          <div class="chart-scroll"><svg id="so-chart" viewBox="0 0 640 314" tabindex="0" role="slider" aria-label="동태평양 수온 편차와 남방진동 지수의 모식 그래프에서 시기 고르기"></svg></div>
-          <p class="footnote">그래프를 누르면 그 시기로 이동합니다. 실제 관측 자료가 아니라 두 값이 반대로 움직이는 관계를 보여 주는 모식 그래프입니다.</p>
+          <h2>시간에 따른 변화 <span class="tag">실측 자료 1991~2024</span></h2>
+          <div class="chart-scroll"><svg id="so-chart" viewBox="0 0 640 314" tabindex="0" role="slider" aria-label="엘니뇨 감시 구역 수온 편차와 남방진동 지수의 실측 그래프에서 시기 고르기"></svg></div>
+          <p class="footnote">그래프를 누르면 그 달로 이동해 지도와 기압 시소가 그 달의 실제 값으로 바뀝니다. 수온 편차는 NOAA ERSST v5(1991~2020 평년 대비), 남방진동 지수와 다윈·타히티 기압은 NOAA CPC 자료이고, 음영은 NOAA CPC 공식 판정(RONI)입니다. 상태 버튼의 엘니뇨·라니냐는 실제 사례 평균입니다.</p>
         </div>
       </div>
     </section>
@@ -257,6 +268,7 @@
 <noscript><p class="noscript">이 웹앱은 JavaScript가 켜져 있어야 동작합니다.</p></noscript>
 
 <script src="js/land.js"></script>
+<script src="js/obs-calib.js"></script>
 <script src="js/model.js"></script>
 <script src="js/draw.js"></script>
 <script src="js/tab-wind.js"></script>

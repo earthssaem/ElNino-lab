@@ -1,41 +1,63 @@
-/* ① 무역풍 실험: 무역풍 세기 → 해수면, 수온 약층, 용승, 표층 수온 */
+/* ① 무역풍 실험: 무역풍 세기 → (몇 달에 걸쳐) 해수면, 수온 약층, 용승, 표층 수온
+ * 무역풍(w)은 슬라이더를 따라 바로 바뀌고, 바다는 E.Ocean 이 시간(달)에 따라 따라가게 한다.
+ * '실제 무역풍으로 재생'은 사례 기간의 실측 무역풍 편차(NCEP/NCAR R1)로 w 를 정하고 바다의 반응을 보여 준다. */
 (function () {
   'use strict';
-  var E = window.ENSO, D = window.ENSODraw;
+  var E = window.ENSO, D = window.ENSODraw, OBS = E.OBS;
   var clamp = E.clamp;
 
+  var MONTHS_PER_SEC = 1.0;       // 직접 바꿀 때: 1초 = 1달
+  var REPLAY_MONTHS_PER_SEC = 1.6; // 실제 바람 재생: 1초 = 1.6달
+
   var M = {};
-  var stage, cv, ctx, slider, out, badge;
+  var stage, cv, ctx, slider, out, badge, clock;
   var W = 0, H = 0, dpr = 1, L = null;
   var base = null, baseKey = '';
-  var s = 0, target = null, time = 0, dirty = true, visible = true;
+  var w = 0, target = null, time = 0, dirty = true, visible = true;
+  var ocean = new E.Ocean(0), st = ocean.state();
   var opts = { iso: true, ghost: true, motion: true };
   var flow = D.makeFlow(70, 46);
   var windP = D.makeWind(64);
   var themeTick = 0;
+  var replay = { on: false, c: null, i0: 0, n: 0, t: 0 };
 
   function $(id) { return document.getElementById(id); }
 
   M.init = function (cfg) {
     stage = $('wind-stage'); cv = $('wind-canvas'); ctx = cv.getContext('2d');
-    slider = $('wind-slider'); out = $('wind-out'); badge = $('wind-badge');
+    slider = $('wind-slider'); out = $('wind-out'); badge = $('wind-badge'); clock = $('wind-clock');
     opts.motion = !cfg.reducedMotion;
     $('wind-motion').checked = opts.motion;
 
     slider.addEventListener('input', function () {
+      stopReplay();
       target = null;
-      s = slider.value / 100;
-      update();
+      setWind(slider.value / 100);
     });
     Array.prototype.forEach.call(document.querySelectorAll('#tab-wind .preset'), function (b) {
       b.addEventListener('click', function () {
+        stopReplay();
         target = parseFloat(b.getAttribute('data-target'));
-        if (!opts.motion) { s = target; target = null; slider.value = Math.round(s * 100); update(); }
+        if (!opts.motion) { var v = target; target = null; setWind(v); slider.value = Math.round(w * 100); }
       });
     });
     [['wind-iso', 'iso'], ['wind-ghost', 'ghost'], ['wind-motion', 'motion']].forEach(function (p) {
-      $(p[0]).addEventListener('change', function (e) { opts[p[1]] = e.target.checked; dirty = true; });
+      $(p[0]).addEventListener('change', function (e) {
+        opts[p[1]] = e.target.checked;
+        if (p[1] === 'motion' && !opts.motion && !replay.on) settleNow();
+        dirty = true;
+      });
     });
+
+    // 실제 무역풍 재생: 실측자료 탐구실과 같은 사례
+    var sel = $('replay-case');
+    OBS.cases.forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = c.id; o.textContent = c.name;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function () { if (replay.on) startReplay(); });
+    $('replay-play').addEventListener('click', function () { if (replay.on) stopReplay(); else startReplay(); });
 
     // 색 막대
     $('wind-cbar').style.background = D.gradientCss(D.TEMP);
@@ -54,16 +76,63 @@
   }
   M.ticks = ticks;
 
+  // 무역풍 상태를 바꾼다. '움직임'이 꺼져 있으면 바다도 곧바로 새 상태로
+  function setWind(v) {
+    w = clamp(v, -1, 1);
+    if (!opts.motion && !replay.on) settleNow();
+    update();
+  }
+  function settleNow() { ocean.reset(w); st = ocean.state(); }
+
+  /* ── 실제 무역풍 재생 ───────────────── */
+  var MON = OBS.monthly, U0 = OBS.trade.u0;
+  function monthIndex(ym) {
+    var y0 = parseInt(MON.start.slice(0, 4), 10), m0 = parseInt(MON.start.slice(5, 7), 10);
+    return (parseInt(ym.slice(0, 4), 10) - y0) * 12 + parseInt(ym.slice(5, 7), 10) - m0;
+  }
+  function ymOf(i) {
+    var y0 = parseInt(MON.start.slice(0, 4), 10), m0 = parseInt(MON.start.slice(5, 7), 10) - 1 + i;
+    return (y0 + Math.floor(m0 / 12)) + '년 ' + (m0 % 12 + 1) + '월';
+  }
+  // 그 달까지 3개월 평균 바람 편차 → 무역풍 세기 비율 → 상태 w
+  function windState(i) {
+    var sum = 0, n = 0;
+    for (var k = i - 2; k <= i; k++) { var v = MON.windAnom[k]; if (v != null) { sum += v; n++; } }
+    if (!n) return 0;
+    return clamp(E.windFromRatio(1 + (sum / n) / U0), -1, 1);
+  }
+  function startReplay() {
+    var id = $('replay-case').value, c = null;
+    OBS.cases.forEach(function (q) { if (q.id === id) c = q; });
+    if (!c) return;
+    target = null;
+    replay = { on: true, c: c, i0: monthIndex(c.start), n: monthIndex(c.end) - monthIndex(c.start), t: 0 };
+    w = windState(replay.i0);
+    ocean.reset(w); st = ocean.state();
+    var b = $('replay-play');
+    b.setAttribute('aria-pressed', 'true'); b.lastElementChild.textContent = '멈춤';
+    slider.value = Math.round(w * 100);
+    update();
+  }
+  function stopReplay() {
+    if (!replay.on) return;
+    replay.on = false;
+    var b = $('replay-play');
+    b.setAttribute('aria-pressed', 'false'); b.lastElementChild.textContent = '재생';
+    $('ro-nino-obs').hidden = true;
+    update();
+  }
+
   function resize() {
-    var w = Math.round(stage.clientWidth);
-    if (!w) return;
-    var h = w < 560 ? Math.round(w * 1.0) : Math.round(clamp(w * 0.56, 360, 640));
-    if (w === W && h === H) return;
-    W = w; H = h;
+    var wd = Math.round(stage.clientWidth);
+    if (!wd) return;
+    var h = wd < 560 ? Math.round(wd * 1.0) : Math.round(clamp(wd * 0.56, 360, 640));
+    if (wd === W && h === H) return;
+    W = wd; H = h;
     dpr = Math.min(2, window.devicePixelRatio || 1);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     cv.style.height = H + 'px';
-    L = D.sectionLayout(W, H, { axis: true, sky: w < 560 ? 0.34 : 0.3, zMax: 300, landW: w < 560 ? 0.08 : 0.06, landE: w < 560 ? 0.1 : 0.075 });
+    L = D.sectionLayout(W, H, { axis: true, sky: wd < 560 ? 0.34 : 0.3, zMax: 300, landW: wd < 560 ? 0.08 : 0.06, landE: wd < 560 ? 0.1 : 0.075 });
     baseKey = '';
     dirty = true;
   }
@@ -71,7 +140,7 @@
   function buildBase() {
     if (!base) base = document.createElement('canvas');
     base.width = cv.width; base.height = cv.height;
-    var b = base.getContext('2d');
+    var b = base.getContext('2d'), s = st;
     b.setTransform(dpr, 0, 0, dpr, 0, 0);
     b.clearRect(0, 0, W, H);
     var t = D.theme();
@@ -87,7 +156,7 @@
     // 층 이름
     var fs = clamp(11 * L.u + 3, 10.5, 14);
     var lonT = 184, colT = E.column(lonT, s);
-    var yBandMid = (L.zToY(colT.M) + L.zToY(colT.D + 53)) / 2;
+    var yBandMid = (L.zToY(colT.M) + L.zToY(colT.D15)) / 2;
     D.text(b, '수온 약층', L.lonToX(lonT), yBandMid, { size: fs, weight: 700, color: '#0f1d26', haloColor: 'rgba(255,255,255,0.8)' });
     var colW = E.column(160, s);
     if (L.zToY(colW.M) - L.ySL > fs * 2) {
@@ -110,29 +179,71 @@
     return band;
   }
 
+  // 수온 약층 변화가 퍼져 나가는 앞머리: 혼합층 바닥선 위에 빛나는 점과 이름표
+  function drawFronts(c) {
+    var f = ocean.fronts();
+    if (!f) return;
+    var fs = clamp(10.5 * L.u + 3, 10, 13.5), pulse = opts.motion ? 0.5 + 0.5 * Math.sin(time * 7) : 1;
+    [['east', f.east, f.warm ? '수온 약층 깊어짐 →' : '수온 약층 얕아짐 →'], ['west', f.west, f.warm ? '← 얕아짐' : '← 깊어짐']].forEach(function (q) {
+      if (q[1] == null) return;
+      var lon = q[1], x = L.lonToX(lon), y = L.zToY(E.mixedLayer(lon, st));
+      c.save();
+      var g = c.createRadialGradient(x, y, 0, x, y, 18 * L.u + 6);
+      g.addColorStop(0, 'rgba(255,236,120,' + (0.55 + 0.35 * pulse).toFixed(2) + ')');
+      g.addColorStop(1, 'rgba(255,236,120,0)');
+      c.fillStyle = g;
+      c.beginPath(); c.arc(x, y, 18 * L.u + 6, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffe36a'; c.strokeStyle = 'rgba(40,30,0,0.7)'; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(x, y, 3.5 * L.u + 2, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.restore();
+      var right = q[0] === 'east';
+      D.pill(c, q[2], x + (right ? 10 : -10), y + fs * 1.7, { size: fs - 0.5, bg: 'rgba(30,24,0,0.82)', fg: '#ffe36a', align: right ? 'left' : 'right' });
+    });
+  }
+
   function draw(dt) {
-    var key = [s.toFixed(3), W, H, opts.iso, opts.ghost, themeTick].join('|');
+    var key = [E.skey(st), W, H, opts.iso, opts.ghost, themeTick].join('|');
     if (key !== baseKey) { buildBase(); baseKey = key; }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(base, 0, 0, W, H);
     if (opts.motion) {
-      D.updateFlow(flow, s, dt);
-      D.drawFlow(ctx, L, s, flow);
+      D.updateFlow(flow, st, dt);
+      D.drawFlow(ctx, L, st, flow);
     }
-    D.drawFishery(ctx, L, s, time);
-    D.drawTradeWind(ctx, L, s, windP, opts.motion ? dt : 0, { labels: true });
+    D.drawFishery(ctx, L, st, time);
+    D.drawTradeWind(ctx, L, st, windP, opts.motion ? dt : 0, { labels: true });
+    drawFronts(ctx);
   }
 
   M.frame = function (dt) {
     if (!visible || !L) return;
-    if (target != null) {
-      var d = target - s;
-      if (Math.abs(d) < 0.004) { s = target; target = null; }
-      else s += d * Math.min(1, dt * 3.2);
-      slider.value = Math.round(s * 100);
-      update();
+    var changed = false;
+    if (replay.on) {
+      replay.t += dt * REPLAY_MONTHS_PER_SEC;
+      if (replay.t >= replay.n) { replay.t = replay.n; }
+      var i = replay.i0 + Math.floor(replay.t), f = replay.t - Math.floor(replay.t);
+      w = E.lerp(windState(i), windState(Math.min(i + 1, replay.i0 + replay.n)), f);
+      slider.value = Math.round(w * 100);
+      ocean.step(dt * REPLAY_MONTHS_PER_SEC, w);
+      st = ocean.state();
+      changed = true;
+      if (replay.t >= replay.n) stopReplay();
+    } else {
+      if (target != null) {
+        var d = target - w;
+        if (Math.abs(d) < 0.004) { w = target; target = null; } else w += d * Math.min(1, dt * 3.2);
+        slider.value = Math.round(w * 100);
+        if (!opts.motion) settleNow();
+        changed = true;
+      }
+      if (opts.motion && (!ocean.settled() || Math.abs(ocean.w - w) > 1e-4)) {
+        ocean.step(dt * MONTHS_PER_SEC, w);
+        st = ocean.state();
+        changed = true;
+      }
     }
+    if (changed) update();
     if (!opts.motion && !dirty) return;
     if (opts.motion) time += dt;
     draw(opts.motion ? dt : 0);
@@ -140,7 +251,7 @@
   };
 
   M.show = function () { visible = true; dirty = true; resize(); };
-  M.hide = function () { visible = false; };
+  M.hide = function () { visible = false; stopReplay(); };
   M.redraw = function () { themeTick++; dirty = true; };
 
   /* ── 읽기 표 · 사슬 ─────────────────── */
@@ -148,7 +259,7 @@
   function signed(v, d) { var r = fmt(v, d); return (v > 0 && parseFloat(r) !== 0 ? '+' : '') + r.replace('-', '−'); }
   function setD(el, v, d, unit, words) {
     el.className = 'ro-d';
-    if (Math.abs(v) < Math.pow(10, -d) * 0.5 || Math.abs(s) < 0.005) { el.textContent = ''; return; }
+    if (Math.abs(v) < Math.pow(10, -d) * 0.5) { el.textContent = ''; return; }
     if (words) {
       el.textContent = fmt(Math.abs(v), d) + ' ' + unit + ' ' + (v > 0 ? words[0] : words[1]);
     } else {
@@ -163,12 +274,12 @@
   }
 
   function update() {
-    var pw = E.PROBE_W, pe = E.PROBE_E;
+    var s = st, pw = E.PROBE_W, pe = E.PROBE_E;
     var sw = E.sst(pw, s), se = E.sst(pe, s);
     var mw = E.mixedLayer(pw, s), me = E.mixedLayer(pe, s);
     var ew = E.seaLevel(pw, s) - E.seaLevel(pw, 0), ee = E.seaLevel(pe, s) - E.seaLevel(pe, 0);
-    var diff = E.seaLevel(pw, s) - E.seaLevel(pe, s);
-    var U = E.upwelling(s), wind = E.wind(s);
+    var diff = E.seaLevel(pw, s) - E.seaLevel(pe, s), diff0 = E.seaLevel(pw, 0) - E.seaLevel(pe, 0);
+    var U = E.upwelling(w), wind = E.wind(w);
     var a = E.nino34(s), ph = E.phase(s);
 
     $('ro-sst-w').textContent = fmt(sw, 1);
@@ -211,24 +322,55 @@
     badge.setAttribute('data-phase', ph);
     badge.textContent = ph === 'nino' ? '엘니뇨 상태' : ph === 'nina' ? '라니냐 상태' : '평상시';
 
-    // 원인 → 결과
-    var dir = Math.abs(s) < 0.03 ? 0 : s < 0 ? -1 : 1;
-    var cls = dir < 0 ? 'p-nino' : dir > 0 ? 'p-nina' : '';
-    function chain(k, txt) {
-      var el = document.querySelector('#wind-chain [data-k="' + k + '"] .c-v');
-      el.className = 'c-v ' + (txt[1] ? cls : '');
-      el.textContent = txt[0];
+    // 시계: 재생 중이면 연·월과 NOAA 공식 판정, 아니면 바람이 바뀐 뒤 흐른 달
+    var settled = ocean.settled() && target == null;
+    var f = ocean.fronts(), obsEl = $('ro-nino-obs');
+    if (replay.on) {
+      var i = replay.i0 + Math.floor(replay.t), stt = MON.state[i], obs = MON.nino34[i];
+      clock.textContent = ymOf(i) + ' · NOAA 판정 ' + (stt === 1 ? '엘니뇨' : stt === -1 ? '라니냐' : stt === 0 ? '중립' : '자료 없음');
+      clock.className = 'clock on replay';
+      obsEl.hidden = false;
+      obsEl.textContent = obs == null ? '실제 자료 없음' : '실제 ' + signed(obs, 1) + ' °C';
+      $('replay-prog').style.width = (replay.t / replay.n * 100).toFixed(1) + '%';
+    } else {
+      obsEl.hidden = true;
+      if (!settled && f) {
+        clock.textContent = '바람이 바뀐 뒤 ' + f.elapsed.toFixed(1) + '개월';
+        clock.className = 'clock on';
+      } else if (!settled) {
+        clock.textContent = '바다가 바뀌는 중…';
+        clock.className = 'clock on';
+      } else {
+        clock.textContent = '';
+        clock.className = 'clock';
+      }
     }
-    chain('wind', dir < 0 ? ['▼ 약해짐', 1] : dir > 0 ? ['▲ 강해짐', 1] : ['동 → 서', 0]);
-    chain('trans', dir < 0 ? ['▼ 줄어듦', 1] : dir > 0 ? ['▲ 늘어남', 1] : ['서쪽에 쌓임', 0]);
-    chain('up', dir < 0 ? ['▼ 약해짐', 1] : dir > 0 ? ['▲ 강해짐', 1] : ['활발', 0]);
-    chain('sste', dir < 0 ? ['▲ ' + fmt(se, 1) + ' °C', 1] : dir > 0 ? ['▼ ' + fmt(se, 1) + ' °C', 1] : [fmt(se, 1) + ' °C', 0]);
-    chain('tilt', dir < 0 ? ['완만해짐', 1] : dir > 0 ? ['급해짐', 1] : ['서쪽이 깊음', 0]);
-    chain('sl', dir < 0 ? ['서·동 차이 줄어듦', 1] : dir > 0 ? ['서·동 차이 커짐', 1] : ['서쪽이 높음', 0]);
+
+    // 원인 → 결과: 지금 값으로 정하고, 아직 따라 바뀌는 중인 고리는 깜빡임
+    var dw = Math.abs(w) < 0.03 ? 0 : w < 0 ? -1 : 1;
+    function dirOf(v, tol) { return Math.abs(v) < tol ? 0 : v > 0 ? 1 : -1; }
+    var dsst = dirOf(se - E.sst(pe, 0), 0.15), dtilt = dirOf(diff - diff0, 2);
+    var eqE = E.sst(pe, w), eqDiff = E.seaLevel(pw, w) - E.seaLevel(pe, w);
+    var windLive = target != null;
+    function chain(key, txt, cls, live) {
+      var li = document.querySelector('#wind-chain [data-k="' + key + '"]');
+      li.classList.toggle('live', !!live);
+      var el = li.querySelector('.c-v');
+      el.className = 'c-v ' + (cls || '');
+      el.textContent = txt;
+    }
+    var cw = dw < 0 ? 'p-nino' : dw > 0 ? 'p-nina' : '';
+    chain('wind', dw < 0 ? '▼ 약해짐' : dw > 0 ? '▲ 강해짐' : '동 → 서', cw, windLive);
+    chain('trans', dw < 0 ? '▼ 줄어듦' : dw > 0 ? '▲ 늘어남' : '서쪽에 쌓임', cw, windLive);
+    chain('up', dw < 0 ? '▼ 약해짐' : dw > 0 ? '▲ 강해짐' : '활발', cw, windLive);
+    chain('sste', (dsst > 0 ? '▲ ' : dsst < 0 ? '▼ ' : '') + fmt(se, 1) + ' °C', dsst > 0 ? 'p-nino' : dsst < 0 ? 'p-nina' : '', Math.abs(se - eqE) > 0.08);
+    chain('tilt', dtilt < 0 ? '완만해짐' : dtilt > 0 ? '급해짐' : '서쪽이 깊음', dtilt < 0 ? 'p-nino' : dtilt > 0 ? 'p-nina' : '', Math.abs(diff - eqDiff) > 1);
+    chain('sl', dtilt < 0 ? '서·동 차이 줄어듦' : dtilt > 0 ? '서·동 차이 커짐' : '서쪽이 높음', dtilt < 0 ? 'p-nino' : dtilt > 0 ? 'p-nina' : '', Math.abs(diff - eqDiff) > 1);
 
     cv.setAttribute('aria-label', '적도 태평양 연직 단면. 무역풍 ' + out.textContent +
       '. 서태평양 표층 수온 ' + fmt(sw, 1) + '도, 동태평양 ' + fmt(se, 1) + '도. 수온 약층 시작 깊이 서 ' +
-      fmt(mw, 0) + '미터, 동 ' + fmt(me, 0) + '미터. 해수면 높이 차 ' + fmt(diff, 0) + '센티미터.');
+      fmt(mw, 0) + '미터, 동 ' + fmt(me, 0) + '미터. 해수면 높이 차 ' + fmt(diff, 0) + '센티미터.' +
+      (clock.textContent ? ' ' + clock.textContent + '.' : ''));
     dirty = true;
   }
 

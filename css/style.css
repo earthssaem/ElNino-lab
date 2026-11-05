@@ -429,6 +429,29 @@ input[type="range"]::-moz-range-thumb {
 .preset[data-phase="nina"]::before { background: var(--nina); }
 .preset:hover { border-color: var(--ink-2); }
 
+/* 바다가 따라 바뀌는 동안의 시계 (그림 오른쪽 위) */
+.clock {
+  position: absolute; top: 10px; right: 12px;
+  padding: 5px 12px; border-radius: 999px;
+  background: rgba(30, 24, 0, 0.82); color: #ffe36a;
+  font-weight: 700; font-size: 13.5px; font-variant-numeric: tabular-nums;
+  pointer-events: none; opacity: 0; transition: opacity .25s;
+}
+.clock.on { opacity: 1; }
+.clock.replay { background: var(--ink); color: var(--bg); }
+
+/* 실제 무역풍으로 재생 */
+.replay { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding-top: 2px; }
+.replay-l { font-weight: 700; font-size: 14px; }
+.replay select {
+  min-height: 40px; padding: 0 10px; max-width: 100%;
+  border: 1.5px solid var(--line); border-radius: 10px;
+  background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; font-size: 14px;
+}
+.replay-bar { flex: 1 1 120px; min-width: 80px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.replay-bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.tile-obs { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
+
 .legend-row {
   display: flex;
   flex-wrap: wrap;
@@ -512,6 +535,9 @@ input[type="range"]::-moz-range-thumb {
   color: var(--muted);
   font-weight: 700;
 }
+/* 아직 따라 바뀌는 중인 고리 */
+.chain li.live { border-color: var(--accent); animation: live-ring 1s ease-in-out infinite; }
+@keyframes live-ring { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 3px var(--accent-soft); } }
 .c-q { font-size: 12px; color: var(--muted); font-weight: 600; }
 .c-v { font-size: 15px; font-weight: 700; color: var(--ink); }
 .c-v.up { color: var(--nino); }
@@ -656,4 +682,5 @@ input[type="range"]::-moz-range-thumb {
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+  .chain li.live { animation: none; }
 }
