@@ -97,4 +97,8 @@ html[data-lab="data"] .labbar-in { max-width: 1560px; }
   .lb-btn { padding: 0 10px; }
   .lb-btn .lb-long { display: none; }
   .lb-btn .lb-short { display: inline; }
+  /* 휴대폰: 두 메뉴를 막대 오른쪽 끝에 맞춰 연다(학습 방법 메뉴가 화면 오른쪽 밖으로 나가지 않게) */
+  .lb-right { position: relative; }
+  .lb-dd { position: static; }
+  .lb-pop { left: auto; right: 0; }
 }
