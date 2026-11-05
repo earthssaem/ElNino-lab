@@ -86,7 +86,7 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 
 ## 실측자료 탐구실 (`observatory/`, `pipeline/`)
 
-- 통합과학2용. 사례는 `pipeline/common.py`의 `CASES`(엘니뇨 3개, 라니냐 2개, `phase`·탐색 기간·`focus` 달)에서 정한다. 월별 지도·단면 자료는 연도별 파일 `observatory/data/year-YYYY.json`이며(사례 기간이 겹쳐도 한 번만 저장), `OBS.ensure(months)`로 읽는다. 사례를 고르면 그 기간의 연도 파일을 모두 읽는다.
+- 사례는 `pipeline/common.py`의 `CASES`(엘니뇨 3개, 라니냐 2개, `phase`·탐색 기간·`focus` 달)에서 정한다. 월별 지도·단면 자료는 연도별 파일 `observatory/data/year-YYYY.json`이며(사례 기간이 겹쳐도 한 번만 저장), `OBS.ensure(months)`로 읽는다. 사례를 고르면 그 기간의 연도 파일을 모두 읽는다.
 - 엘니뇨·라니냐·중립 표시는 NOAA CPC 공식 판정(RONI 표의 빨강·파랑, `enso_record.py`가 읽음)을 그대로 쓴다. 월별 Niño 3.4가 ±0.5 °C를 넘었다는 이유만으로 판정하지 않는다. 참고로 ONI v5 판정도 `meta.cases[].official_oni5`에 있다.
 - 화면의 모든 값은 `pipeline/`이 공식 원자료(ERSST v5, GODAS, NCEP/NCAR Reanalysis 1 10 m 바람, GPCP v2.3)로 만든 `observatory/data/*.json`이다. **임의로 만든 값·채운 결측을 절대 넣지 않는다.** 자료가 없으면 '자료 없음'으로 표시한다.
 - 무역풍은 1991~2024 전 기간 NCEP/NCAR R1 하나로 가공한다. 다른 재분석(ERA5 등)과 시기별로 섞지 않는다. R1을 못 쓰게 되면 몰래 바꾸지 말고 사용자에게 Copernicus CDS 사용을 제안한다.
@@ -94,8 +94,9 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 - 자료 다시 만들기: `cd pipeline && ./run_all.sh` (원자료는 `pipeline/raw/`, 중간 자료는 `pipeline/work/`, 둘 다 저장소에 넣지 않음). 검증 결과 `pipeline/validation/REPORT.md`도 함께 갱신해 커밋한다.
 - 루트 시뮬레이터의 보정 자료도 이 자료에서 나온다: `pipeline/build_sim.py` → `js/obs-calib.js` (`run_all.sh` 마지막 단계). 자료를 다시 만들면 이 스크립트도 다시 돌리고 루트 앱을 점검한다.
 - 머리에서 `../css/lab.css`와 `../js/lab.js`(과목 상태·탐구실 막대)를 읽는다.
+- **과목 모드**(`app.js`의 `simple()`, 과목이 없으면 지구과학 = 전체 기능): 통합과학은 엘니뇨 사례만(라니냐 버튼 `.only-earth`, 라니냐를 보던 중 바꾸면 `lastCase.nino`로), 수온 단면·시계열 패널 숨김(그리지도 않음), 지도에 단면 띠·Niño 3.4 상자 없음(`map.draw({simple})`), 날짜 옆은 RONI 엘니뇨인 달만 '엘니뇨 시기'·Niño 3.4 편차 숨김·막대 띠는 엘니뇨 기간만, 시기 비교 목록은 엘니뇨 사례만, 탐구 순서 안내(`.guide.only-int`), 간단한 자료 출처. 통합과학 화면 글자에 라니냐·Niño·RONI·수온약층·GODAS를 쓰지 않는다. **자료 값은 과목과 관계없이 같다**(숨기기만 하고 바꾸지 않음). 과목을 바꾸면 `applySubject`가 그 자리에서 다시 그린다. `.only-earth`/`.only-int` 규칙은 `css/obs.css`에도 있다.
 - 화면 코드: `observatory/js/` — `data.js`(window.OBS, 자료·편차·20 ℃ 등온선) → `colors.js`(고정 색 범위) → `map.js` / `section.js` / `series.js` → `app.js`. 지도 해안선은 루트의 `js/land.js`를 쓴다. ES5 문법 유지.
-- `fetch`로 자료를 읽으므로 브라우저 확인은 반드시 로컬 서버로 한다. 같은 Playwright 점검(화면 크기 5종, 밝은·어두운 테마, 콘솔 오류·404·가로 넘침)을 `observatory/`에도 한다.
+- `fetch`로 자료를 읽으므로 브라우저 확인은 반드시 로컬 서버로 한다. 같은 Playwright 점검(화면 크기 5종, 밝은·어두운 테마, 콘솔 오류·404·가로 넘침)을 `observatory/`에도 **두 과목 모두** 한다(시기 비교·재생 포함).
 - 단면 위도 평균은 2°S~2°N 위도 격자 12개 중 값이 있는 해양 격자만 쓴다(유효 0개면 결측, 보간·생성 금지). 해양 격자 수는 `meta.grids.section.ocean_count`, 그 달 원자료 결측으로 달라진 칸은 사례 파일 `section_count_diff`에 있고 `OBS.secCount(ym)`로 읽는다. 6개 미만 칸은 빗금(대표성 낮음).
 - 지도 클릭은 단면 평균 범위(2°S~2°N, `meta.regions.section.lat`) 안일 때만 단면 경도와 연동한다.
 - 과학적 표기 원칙: 단면은 2°S~2°N 평균(페루 연안 단면 아님), 20 ℃ 등온선은 수온약층의 대표 지표(같지 않음), 무역풍 지역 평균은 이 앱의 계산값(공식 지수 아님), 단면 색은 격자 사이 선형 보간.

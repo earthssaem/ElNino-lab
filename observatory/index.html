@@ -23,13 +23,13 @@
         <path d="M6 30C12 22 18 18 24 17s8 0 10 1" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
       </svg>
       <span class="brand-text">
-        <span class="brand-ko">엘니뇨·라니냐 실측자료 탐구실</span>
+        <span class="brand-ko"><span class="only-earth">엘니뇨·라니냐 실측자료 탐구실</span><span class="only-int">엘니뇨 실측자료 탐구실</span></span>
         <span class="brand-en">Pacific ENSO Observatory</span>
       </span>
     </a>
 
     <div class="picker">
-      <div class="phase-seg" role="radiogroup" aria-label="현상" id="phaseGroup">
+      <div class="phase-seg only-earth" role="radiogroup" aria-label="현상" id="phaseGroup">
         <button type="button" role="radio" data-phase="nino" aria-checked="true">엘니뇨</button>
         <button type="button" role="radio" data-phase="nina" aria-checked="false" tabindex="-1">라니냐</button>
       </div>
@@ -43,7 +43,7 @@
   <section class="timebar" id="timebar" aria-label="관측 시기">
     <div class="now">
       <div class="now-month"><span id="nowMonth" aria-live="polite">—</span> <span class="now-state" id="nowState" title="NOAA CPC 공식 판정(RONI)"></span></div>
-      <div class="now-sub" id="nowSub"></div>
+      <div class="now-sub only-earth" id="nowSub"></div>
     </div>
     <div class="time-ctrl">
       <button type="button" class="btn icon" id="prevBtn" aria-label="이전 달" title="이전 달">
@@ -69,7 +69,18 @@
   <section class="comparebar" id="comparebar" hidden aria-label="비교할 두 시기">
     <div class="pick"><span class="pick-tag">A</span><label class="sr" for="pickA">시점 A</label><select id="pickA"></select></div>
     <div class="pick"><span class="pick-tag">B</span><label class="sr" for="pickB">시점 B</label><select id="pickB"></select></div>
-    <p class="pick-note">두 시점은 같은 변수·같은 색 범위·같은 수심 축으로 그립니다.</p>
+    <p class="pick-note"><span class="only-earth">두 시점은 같은 변수·같은 색 범위·같은 수심 축으로 그립니다.</span><span class="only-int">두 시점은 같은 자료·같은 색 범위로 그립니다.</span></p>
+  </section>
+
+  <!-- 통합과학: 탐구 순서 안내 -->
+  <section class="guide only-int" aria-labelledby="guideTitle">
+    <h2 id="guideTitle">이렇게 탐구해 보세요</h2>
+    <ol>
+      <li><b>평상시와 비교</b> 지도를 <b>평년 편차</b>로 바꾸면 평소보다 따뜻한 바다는 붉게, 차가운 바다는 푸르게 보여요.</li>
+      <li><b>동태평양 수온</b> 시간 막대를 움직이며 엘니뇨 시기(막대 아래 빨간 띠)에 남아메리카 앞 적도 바다가 얼마나 따뜻해지는지 보세요.</li>
+      <li><b>무역풍</b> 적도의 바람 화살표가 평소보다 짧아지는(약해지는) 곳을 찾아보세요. 엘니뇨 때도 바람 방향이 늘 바뀌는 것은 아니에요.</li>
+      <li><b>강수량</b> 지도를 <b>강수량</b>으로 바꾸고, 비가 많이 오는 곳이 어디로 옮겨 가는지 보세요. <b>시기 비교</b>로 엘니뇨 전과 나란히 볼 수도 있어요.</li>
+    </ol>
   </section>
 
   <main id="main">
@@ -99,7 +110,7 @@
     </section>
 
     <!-- 수온 단면 -->
-    <section class="panel" aria-labelledby="secTitle">
+    <section class="panel only-earth" aria-labelledby="secTitle">
       <div class="panel-head">
         <h2 id="secTitle">적도 태평양 수온 단면 <span class="h-sub">2°S~2°N 평균 · NCEP GODAS</span></h2>
         <div class="tools">
@@ -134,7 +145,7 @@
     </section>
 
     <!-- 시계열 -->
-    <details class="panel fold" id="seriesFold">
+    <details class="panel fold only-earth" id="seriesFold">
       <summary><h2>시계열 그래프 <span class="h-sub">무역풍과 Niño 3.4 수온 편차</span></h2></summary>
       <div class="fold-body">
         <div class="tools tools-left">
