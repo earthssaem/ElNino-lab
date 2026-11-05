@@ -1,0 +1,166 @@
+/* 대화로 배우는 엘니뇨 (story/) — 색·머리·카드·푸터는 ../css/style.css 를 함께 쓴다 */
+:root { --ok: #23864b; --ok-soft: #e3f4ea; --spot: #ffd23f; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --ok: #5fcf8d; --ok-soft: #143323; }
+}
+:root[data-theme="dark"] { --ok: #5fcf8d; --ok-soft: #143323; }
+
+.top-link {
+  display: inline-flex; align-items: center;
+  min-height: 40px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--ink-2);
+  font-weight: 600; font-size: 14px; text-decoration: none;
+}
+.top-link:hover { color: var(--ink); border-color: var(--accent); }
+
+/* ── 배치: 넓은 화면은 그림 | 대화, 좁은 화면은 그림 → 대화 → 수온 ── */
+.story-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-areas: "stage talk" "read talk";
+  grid-template-rows: auto 1fr;
+  gap: 12px 16px;
+  align-items: start;
+}
+.stage-card { grid-area: stage; padding: 8px; overflow: hidden; }
+.stage-card .stage canvas { border-radius: 10px; }
+
+/* ── 그림 위 캐릭터 ── */
+.cast { position: absolute; inset: 0; pointer-events: none; --av: 40px; }
+.actor { position: absolute; left: 0; top: 0; width: var(--av); height: var(--av); opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s; }
+.actor.on { opacity: .85; visibility: visible; }
+.actor.on.speaking { opacity: 1; z-index: 1; }
+.actor-av {
+  display: block; width: 100%; height: 100%;
+  border-radius: 50%; overflow: hidden;
+  border: 2px solid #fff; background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .28);
+}
+.actor-av svg { display: block; width: 100%; height: 100%; }
+.actor-nm {
+  position: absolute; left: 50%; top: 100%;
+  transform: translateX(-50%);
+  margin-top: 2px; padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(15, 29, 38, .74); color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 17px; white-space: nowrap;
+}
+.actor.speaking .actor-av { border-color: var(--spot); box-shadow: 0 0 0 3px rgba(255, 210, 63, .55), 0 2px 8px rgba(0, 0, 0, .3); animation: hop .55s ease 2; }
+.actor.speaking .actor-nm { background: #1b2a33; box-shadow: 0 0 0 1.5px var(--spot); }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+
+/* ── 대화 ── */
+.talk { grid-area: talk; align-self: stretch; display: flex; flex-direction: column; padding: 18px 20px; }
+.stepno { display: flex; align-items: center; gap: 8px; min-height: 22px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: .5px; }
+.dare { padding: 1px 9px; border-radius: 999px; background: var(--nina-soft); color: var(--nina); font-family: var(--font); font-weight: 700; letter-spacing: 0; }
+.talk h2 { margin: 2px 0 12px; font-size: 21px; font-weight: 700; line-height: 1.3; letter-spacing: -.3px; word-break: keep-all; }
+.say { display: flex; flex-direction: column; gap: 10px; }
+.speaker { display: flex; align-items: center; gap: 10px; }
+.speaker .av { width: 44px; height: 44px; flex: none; border-radius: 50%; overflow: hidden; border: 2px solid var(--surface); box-shadow: 0 2px 6px rgba(0, 0, 0, .18); }
+.speaker .av svg { display: block; width: 100%; height: 100%; }
+.speaker b { font-size: 15px; font-weight: 700; }
+.speaker .cnt { margin-left: auto; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.speaker .cnt:empty { display: none; }
+.speech { position: relative; padding: 12px 16px; border: 1.5px solid var(--line); border-radius: 16px; background: var(--surface); }
+.speech::before {
+  content: ""; position: absolute; left: 16px; top: -8.5px;
+  width: 14px; height: 14px;
+  background: var(--surface);
+  border-left: 1.5px solid; border-top: 1.5px solid; border-color: inherit;
+  transform: rotate(45deg);
+}
+.speech.wind { border-color: #8fb1c9; }
+.speech.west { border-color: #f0a67c; }
+.speech.east { border-color: #7dbbe6; }
+.speech.cloud { border-color: #b4c8da; }
+.speech.fisher { border-color: #d9b679; }
+.speech p { margin: 0; font-size: 17px; line-height: 1.6; font-weight: 500; word-break: keep-all; overflow-wrap: anywhere; }
+
+.note { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.note:empty { display: none; }
+.note .key { padding: 9px 12px; border-left: 4px solid var(--accent); border-radius: 8px; background: var(--accent-soft); color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
+.ask { display: flex; flex-direction: column; gap: 8px; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choices .ch {
+  flex: 1; min-width: 92px; min-height: 46px;
+  border: 1.5px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--ink);
+  font-size: 15.5px; font-weight: 700;
+}
+.choices .ch:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.choices .ch:disabled { cursor: default; opacity: .5; }
+.choices .ch.right { opacity: 1; border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.choices .ch.wrong { opacity: 1; border-color: var(--nino); background: var(--nino-soft); color: var(--nino); }
+.fb { font-size: 14.5px; font-weight: 700; }
+.fb.ok { color: var(--ok); }
+.fb.no { color: var(--nino); }
+
+.more { margin-top: 10px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.more summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
+.more p { margin: 6px 0 0; color: var(--ink-2); font-size: 13.5px; word-break: keep-all; }
+
+.nav { display: flex; gap: 10px; margin-top: auto; padding-top: 16px; }
+.nav button { min-height: 50px; border: 0; border-radius: 12px; font-size: 16px; font-weight: 700; }
+.nav .prev { flex: none; padding: 0 18px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); }
+.nav .next { flex: 1; background: var(--accent); color: var(--on-accent); }
+.nav button:disabled { opacity: .4; cursor: default; }
+.nav-sub { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.dots { display: flex; flex-wrap: wrap; gap: 2px; flex: 1; }
+.dots button { position: relative; width: 28px; height: 26px; padding: 0; border: 0; background: transparent; }
+.dots button::before { content: ""; position: absolute; left: 3px; right: 3px; top: 10px; height: 6px; border-radius: 3px; background: var(--line); }
+.dots button.done::before { background: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.dots button.cur::before { background: var(--accent); }
+.dots button.dare::before { background: color-mix(in srgb, var(--nina) 35%, var(--line)); }
+.dots button.dare.cur::before { background: var(--nina); }
+.restart { flex: none; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; }
+.restart:hover { color: var(--ink); }
+
+/* ── 수온 읽기 ── */
+.read { grid-area: read; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 0 2px; }
+.read-vals { display: flex; flex-wrap: wrap; gap: 8px; }
+.rv { display: inline-flex; align-items: baseline; gap: 4px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 13px; }
+.rv-k { margin-right: 2px; color: var(--muted); font-weight: 600; }
+.rv b { font-size: 17px; font-weight: 600; }
+.rv-u { color: var(--muted); }
+.rv-d { margin-left: 4px; font-size: 12px; font-weight: 700; }
+.rv-d.up { color: var(--nino); }
+.rv-d.dn { color: var(--nina); }
+.read .cbar-wrap { flex: 0 1 240px; min-width: 180px; }
+.read-foot { display: flex; flex-basis: 100%; align-items: center; gap: 8px 14px; }
+.read-foot .footnote { flex: 1; margin: 0; }
+
+@media (max-width: 1199px) {
+  .story-grid { grid-template-columns: minmax(0, 1fr) 340px; }
+  .speech p { font-size: 16.5px; }
+  .dots button { width: 22px; }
+}
+@media (max-width: 899px) {
+  .story-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "talk" "read"; grid-template-rows: auto; }
+}
+@media (max-width: 560px) {
+  .app { padding-inline: 12px; padding-top: 10px; }
+  .top { margin-bottom: 10px; }
+  .top-link { display: none; }
+  .brand-mark { width: 36px; height: 36px; }
+  .stage-card { padding: 4px; }
+  .talk { padding: 14px; }
+  .talk h2 { margin-bottom: 8px; font-size: 18.5px; }
+  .speaker .av { width: 38px; height: 38px; }
+  .speech p { font-size: 16px; }
+  .nav button { min-height: 46px; }
+  .actor-nm { font-size: 10px; line-height: 15px; padding: 0 5px; }
+  .dots button { width: 24px; }
+  .read-foot { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actor.speaking .actor-av { animation: none; }
+}
+
+/* 상태 딱지는 오른쪽 위 (왼쪽 위에는 서쪽 구름이 옴). 휴대폰에서도 그림 위에 둠: 공통 css 는 640px 이하에서 딱지를 그림 밖으로 빼는데,
+   그러면 그림 위 캐릭터(.cast)의 기준이 어긋나므로 여기서 되돌림 */
+.stage-card .badge { left: auto; right: 12px; }
+@media (max-width: 640px) {
+  .stage-card .stage { display: block; }
+  .stage-card .stage .badge { position: absolute; top: 8px; right: 8px; left: auto; margin: 0; padding: 4px 10px; font-size: 13px; }
+}

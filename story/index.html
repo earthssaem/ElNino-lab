@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>대화로 배우는 엘니뇨</title>
+<meta name="description" content="무역풍, 서태평양 바다, 동태평양 바다, 구름, 페루 어부의 대화를 따라가며 엘니뇨가 생기는 까닭과 영향을 배우는 통합과학 수업용 웹앱">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='1' y='1' width='38' height='38' rx='10' fill='%230b6d77'/%3E%3Cpath d='M9 9h22a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H19l-6 5v-5H9a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z' fill='%23fff'/%3E%3Cpath d='M10 19c3-2.5 6-2.5 9 0s6 2.5 10 0' stroke='%230b6d77' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="css/story.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="brand" id="homeLink" href="./" title="처음 화면으로" aria-label="대화로 배우는 엘니뇨 — 처음 화면으로">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="1" y="1" width="38" height="38" rx="10" style="fill:var(--accent)"/>
+        <path d="M9 9h22a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H19l-6 5v-5H9a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z" style="fill:var(--on-accent)"/>
+        <path d="M10 19c3-2.5 6-2.5 9 0s6 2.5 10 0" style="stroke:var(--accent)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <h1>대화로 배우는 엘니뇨</h1>
+        <p>통합과학 · 바람과 바다가 들려주는 이야기</p>
+      </div>
+    </a>
+    <a class="top-link" href="../observatory/">실제 관측 자료로 보기 →</a>
+  </header>
+
+  <main class="story-grid">
+    <div class="card stage-card">
+      <div class="stage" id="story-stage">
+        <canvas id="story-canvas" role="img" aria-label="적도 태평양 단면 그림"></canvas>
+        <div class="badge" id="story-badge" data-phase="normal">평상시</div>
+        <div class="cast" id="cast" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <section class="card talk" aria-label="대화">
+      <div class="stepno"><span id="stepNo">STEP 0 / 7</span><span class="dare" id="stepDare" hidden>도전</span></div>
+      <h2 id="stepTitle"></h2>
+      <div class="say" aria-live="polite">
+        <div class="speaker"><div class="av" id="sayAv"></div><b id="sayName"></b><span class="cnt" id="sayCnt"></span></div>
+        <div class="speech" id="speech"><p id="sayText"></p></div>
+      </div>
+      <div class="note" id="sayNote"></div>
+      <details class="more" id="stepMore" hidden><summary>더 알아보기</summary><p id="stepMoreText"></p></details>
+      <div class="nav">
+        <button type="button" class="prev" id="prev">◀ 이전</button>
+        <button type="button" class="next" id="next">다음 대화 ▶</button>
+      </div>
+      <div class="nav-sub">
+        <div class="dots" id="dots" role="group" aria-label="단계 바로 가기"></div>
+        <button type="button" class="restart" id="restart">↺ 처음부터</button>
+      </div>
+    </section>
+
+    <div class="read" aria-label="표층 수온">
+      <div class="read-vals">
+        <span class="rv"><span class="rv-k">서쪽 바다 표층</span><b class="mono" id="rv-w">29.6</b><span class="rv-u">°C</span><span class="rv-d" id="rv-dw"></span></span>
+        <span class="rv"><span class="rv-k">동쪽 바다 표층</span><b class="mono" id="rv-e">24.0</b><span class="rv-u">°C</span><span class="rv-d" id="rv-de"></span></span>
+      </div>
+      <div class="cbar-wrap">
+        <span class="cbar-label">수온</span>
+        <div class="cbar" id="story-cbar"></div>
+        <div class="cbar-ticks" id="story-cbar-ticks"></div>
+      </div>
+      <div class="read-foot">
+        <label class="chk"><input type="checkbox" id="story-motion" checked><span>움직임</span></label>
+        <p class="footnote">그림과 수온은 실제 관측값이 아니라 대략적인 크기를 맞춘 모식값이에요. 해수면 높이 차는 잘 보이도록 과장해서 그렸어요.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer><a class="hub" href="../observatory/">실제 관측 자료로 보기: 엘니뇨·라니냐 실측자료 탐구실 →</a> · <a class="hub" href="../">더 깊이: 엘니뇨·라니냐 탐구실(지구과학Ⅰ) →</a><br>© 2026 제작: 김연경(earthssaem@gmail.com) | <a class="hub" href="https://earthssaem-lab.vercel.app/" target="_blank" rel="noopener">연경쌤의 지구과학 실험실 둘러보기 →</a></footer>
+</div>
+
+<noscript><p class="noscript">이 웹앱은 JavaScript가 켜져 있어야 동작합니다.</p></noscript>
+
+<script src="../js/model.js"></script>
+<script src="../js/draw.js"></script>
+<script src="js/script.js"></script>
+<script src="js/story.js"></script>
+</body>
+</html>
