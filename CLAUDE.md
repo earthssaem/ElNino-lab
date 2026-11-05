@@ -70,12 +70,14 @@ npx eslint --no-config-lookup --rule '{"no-undef":"error"}' \
 - 캔버스는 `D.theme()`로 CSS 변수를 읽어 캐시한다. 캔버스에 새 색을 쓰려면 CSS 변수(밝은·어두운 세 곳)를 추가하고 `D.theme()`에 연결한다. 테마가 바뀌면 `app.js`가 `D.invalidateTheme()`와 각 탭의 `redraw()`를 부른다.
 - 엘니뇨·라니냐·평상시 색 바탕 위의 글자는 `--on-phase`(밝은 테마 흰색, 어두운 테마 진한 색)를 쓴다.
 
-## 탐구실 첫 화면과 과목 선택 (`index.html`, `js/lab.js`, `css/lab.css`)
+## 탐구실 첫 화면과 과목 선택 (`index.html`, `js/lab.js`, `css/lab.css`, `css/hub.css`)
 
 - 과목은 `integrated`(통합과학) · `earth`(지구과학) 두 가지. `js/lab.js`(window.LAB)가 주소의 `?subject=`(있으면 우선하고 저장) → localStorage `enso-lab-subject` 순으로 읽는다. **서버로 보내지 않고, 로그인·개인정보 입력은 만들지 않는다.**
 - `lab.js`는 각 페이지 `<head>`에서 읽혀 곧바로 `<html data-subject>`를 붙인다. 과목별 내용은 이 속성(css)과 `window`의 `lab:subject` 이벤트(`detail.subject`) 또는 `LAB.onChange(fn)`로 바꾼다. 과목을 바꿔도 페이지를 옮기거나 학습 상태를 초기화하지 않는다. 주소에 `?subject=`가 있으면 바꾼 과목으로 고쳐 둔다.
 - 학습 페이지는 `<html data-lab="story|sim|data">`를 붙이면 `lab.js`가 `body` 맨 앞에 탐구실 막대(`nav.labbar`: 학습 메뉴 링크 · 학습 방법 메뉴 · 과목 메뉴)를 넣는다. 막대는 세 페이지의 색 토큰이 달라 자기 토큰(`--lab-*`, 밝은·어두운 세 곳)을 쓴다. 메뉴는 Esc로 닫히고 ↓/↑로 항목을 옮긴다.
 - 첫 화면: 저장된 과목이 없으면 과목 선택(카드 두 장), 있으면 그 과목의 학습 방법 메뉴(대화형·시뮬레이션·실측자료 카드, 설명은 과목별 `DESC`). 과목 선택이 학습 방법으로 강제 이동시키지 않는다. 제목을 누르면 학습 메뉴(과목이 없으면 과목 선택)로.
+- 첫 화면 디자인은 `css/hub.css`(첫 화면만 읽음). Pacific Blue 색 토큰(Deep Ocean Blue `#163F70` 제목, Ocean Blue `#3279BC` 버튼·선택, Sky Blue `#81B6DD`, Pale Blue `#E6F2FB`, 바탕 `#F8FAFC`)을 `body.hub-page` 안에서만 바꾸므로 학습 페이지와 과학 색상표·엘니뇨/라니냐 상태 색에는 영향이 없다(어두운 값은 두 곳). 제목은 장식 글꼴 없이 굵은 산세리프.
+- 과목 카드: 그림(인라인 SVG, 같은 적도 태평양 구도) → 과목 → 부제 → 질문 → 키워드 3개 → '탐구 시작'. 카드 전체가 링크다. 통합과학 그림은 엘니뇨 때 바다 표면(약해졌지만 거꾸로 불지 않는 무역풍, 동쪽으로 퍼진 따뜻한 바닷물, 동쪽으로 옮겨 간 비구름, 어선), 지구과학 그림은 해양 내부와 대기(서쪽 깊고 동쪽 얕은 수온약층 띠, 그 대표 지표인 20 ℃ 등온선 평상시 실선·엘니뇨 점선, 동쪽 용승, 워커 순환, 서쪽 저기압·동쪽 고기압). 첫 방문에는 아무 카드도 골라져 있지 않고, 저장된 과목이 있을 때 '과목 바꾸기'로 돌아오면 그 카드에 '지금 과목'이 붙는다. 프로젝터처럼 높이가 낮은 화면(≤800px)에서는 카드 폭을 줄여 한 화면에 들어오게 한다.
 - 바로 가기 주소: `/?subject=integrated|earth`(학습 메뉴), `&learn=story|sim|data`(그 학습 페이지로 `location.replace`). 예전 주소 `/#wind`, `/#compare`, `/#so`는 `simulation/`의 같은 탭으로 옮긴다. 학습 페이지 주소는 `LAB.url(id, subject)`, 첫 화면 주소는 `LAB.homeUrl()`로 만든다.
 - 학습 페이지끼리의 상대 경로는 `../story/`, `../simulation/`, `../observatory/`, 첫 화면은 `../`다.
 

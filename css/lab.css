@@ -1,4 +1,4 @@
-/* 엘니뇨·라니냐 탐구실 공통: 학습 페이지 맨 위 탐구실 막대(.labbar)와 첫 화면(.hub)
+/* 엘니뇨·라니냐 탐구실 공통: 학습 페이지 맨 위 탐구실 막대(.labbar). 첫 화면 디자인은 css/hub.css
    막대는 세 학습 페이지(색 토큰이 서로 다름)에 똑같이 붙으므로 자기 색 토큰(--lab-*)을 쓴다.
    어두운 테마 값은 media 블록과 :root[data-theme="dark"] 두 곳에 똑같이 둔다. */
 :root {
@@ -97,57 +97,4 @@ html[data-lab="data"] .labbar-in { max-width: 1560px; }
   .lb-btn { padding: 0 10px; }
   .lb-btn .lb-long { display: none; }
   .lb-btn .lb-short { display: inline; }
-}
-
-/* ── 첫 화면: 과목 선택 · 학습 방법 ── */
-.hub main { max-width: 1040px; margin: 0 auto; }
-.hub-q { margin: 18px 0 6px; text-align: center; font-family: var(--font-display); font-weight: 400; font-size: clamp(24px, 3.4vw, 34px); line-height: 1.25; }
-.hub-sub { margin: 0 0 22px; text-align: center; color: var(--muted); font-size: 15px; }
-.subj-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.subj-card, .method-card {
-  display: flex; flex-direction: column; gap: 10px; min-width: 0;
-  padding: 22px 22px 20px; border: 1.5px solid var(--line); border-radius: var(--radius);
-  background: var(--surface); color: var(--ink); text-decoration: none;
-  transition: border-color .15s, box-shadow .15s, transform .15s;
-}
-.subj-card:hover, .method-card:hover { border-color: var(--accent); box-shadow: 0 6px 20px rgba(11, 109, 119, .14); transform: translateY(-2px); }
-.subj-card:focus-visible, .method-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-.subj-card h3, .method-card h3 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.3px; }
-.subj-card p, .method-card p { margin: 0; color: var(--ink-2); font-size: 15.5px; line-height: 1.55; word-break: keep-all; }
-.subj-card ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
-.subj-card li { padding: 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
-.subj-card .go, .method-card .go { margin-top: auto; padding-top: 6px; font-weight: 700; color: var(--accent); }
-.subj-card .badge-s { align-self: flex-start; padding: 3px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 700; }
-.subj-card.current { border-color: var(--accent); }
-
-.menu-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; margin: 14px 0 20px; text-align: center; }
-.menu-head .hub-q { flex-basis: 100%; margin: 0; }
-.menu-subj { display: inline-flex; align-items: center; padding: 4px 14px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 15px; }
-.menu-change { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink-2); font-weight: 600; font-size: 14px; }
-.menu-change:hover { border-color: var(--accent); color: var(--ink); }
-.method-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.method-card .ic { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: var(--accent-soft); color: var(--accent); }
-.method-card .ic svg { width: 30px; height: 30px; }
-.method-card h3 { font-size: 21px; }
-.hub-note { margin: 18px 0 0; text-align: center; color: var(--muted); font-size: 13.5px; }
-@media (max-width: 860px) {
-  .method-cards { grid-template-columns: minmax(0, 1fr); }
-  .method-card { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 14px; padding: 16px; }
-  .method-card .txt { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-  .method-card .go { display: none; }
-}
-@media (max-width: 640px) {
-  .subj-cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .subj-card { padding: 18px 16px 16px; gap: 8px; }
-  .subj-card h3 { font-size: 22px; }
-  .subj-card p { font-size: 15px; }
-  .hub-q { margin-top: 8px; }
-  .hub-sub { margin-bottom: 14px; }
-}
-@media (min-width: 861px) {
-  .method-card .txt { display: flex; flex-direction: column; gap: 8px; flex: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .subj-card, .method-card { transition: none; }
-  .subj-card:hover, .method-card:hover { transform: none; }
 }

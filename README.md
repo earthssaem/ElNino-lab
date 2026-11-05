@@ -184,7 +184,8 @@ pip install -r requirements.txt
 ```
 index.html          탐구실 첫 화면(과목 선택 · 학습 방법 메뉴)
 js/lab.js           공통 과목 상태(localStorage·?subject=)와 학습 페이지 맨 위 탐구실 막대
-css/lab.css         탐구실 막대와 첫 화면 디자인
+css/lab.css         탐구실 막대(학습 페이지 맨 위)
+css/hub.css         첫 화면 디자인(Pacific Blue 색, 과목 카드)
 simulation/index.html  개념 시뮬레이션 화면 구성
 css/style.css       디자인(밝은·어두운 테마, 휴대폰 대응)
 js/obs-calib.js     실측 보정 자료(자동 생성: pipeline/build_sim.py) — 평년·합성 단면, 표층 수온, 바람, 강수, 기압, 1991~2024 월별 지수

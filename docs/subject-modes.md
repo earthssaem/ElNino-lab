@@ -20,7 +20,8 @@
 /story/            대화형 학습
 /observatory/      실측자료 탐구
 js/lab.js          공통 과목 상태(window.LAB)와 학습 페이지 맨 위 탐구실 막대
-css/lab.css        탐구실 막대(자체 색 토큰 --lab-*)와 첫 화면 디자인
+css/lab.css        탐구실 막대(자체 색 토큰 --lab-*)
+css/hub.css        첫 화면 디자인(Pacific Blue 색 토큰을 body.hub-page 안에서만, 그림 있는 과목 카드)
 ```
 
 - **과목 상태**: `?subject=integrated|earth`가 주소에 있으면 우선하고 저장, 없으면 localStorage `enso-lab-subject`.
