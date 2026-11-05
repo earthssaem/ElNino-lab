@@ -1,4 +1,4 @@
-/* ③ 남방진동: 워커 순환 지도 + 다윈·타히티 기압 시소 + 실측 시계열(1991~2024)
+/* ③ 대기 순환과 남방진동(지구과학 전용): 워커 순환 지도 + 다윈·타히티 기압 시소 + 실측 시계열(1991~2024)
  * 시계열: 엘니뇨 감시 구역 수온 편차(ERSST v5), 남방진동 지수(NOAA CPC, 표준화), 다윈·타히티 기압 편차(NOAA CPC, 1991~2020 평년 대비),
  * 음영은 NOAA CPC 공식 판정(RONI). 그래프의 한 달을 고르면 그 달의 Niño 3.4 편차로 지도의 상태 s 를 정하고, 기압 시소는 그 달의 실제 기압 편차를 쓴다. */
 (function () {
@@ -495,6 +495,7 @@
       badge.textContent = ph === 'nino' ? '엘니뇨' : ph === 'nina' ? '라니냐' : '평상시';
     }
     badge.setAttribute('data-phase', ph);
+    $('so-src').textContent = real ? '실측 · ' + chart.label.textContent : '모형 값';
     updateSeesaw();
     chart.head.style.opacity = real ? 1 : 0.35;
     var pr = pressureNow();

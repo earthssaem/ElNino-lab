@@ -1,6 +1,8 @@
 /* ① 무역풍 실험: 무역풍 세기 → (몇 달에 걸쳐) 해수면, 수온 약층, 용승, 표층 수온
  * 무역풍(w)은 슬라이더를 따라 바로 바뀌고, 바다는 E.Ocean 이 시간(달)에 따라 따라가게 한다.
- * '실제 무역풍으로 재생'은 사례 기간의 실측 무역풍 편차(NCEP/NCAR R1)로 w 를 정하고 바다의 반응을 보여 준다. */
+ * '실제 관측 바람으로 실험하기'(지구과학)는 사례 기간의 실측 무역풍 편차(NCEP/NCAR R1)로 w 를 정하고 모형이 계산한 바다의 반응을 보여 준다.
+ * 과목(M.subject): 통합과학은 무역풍을 평상시~약화 범위로, 정보는 무역풍 세기·표층 수온·용승·비가 많이 오는 곳만.
+ *   지구과학은 약화~강화, 20 ℃ 등온선 깊이·용승 강도와 접이식 상세 정보, 실제 관측 바람 실험. */
 (function () {
   'use strict';
   var E = window.ENSO, D = window.ENSODraw, OBS = E.OBS;
@@ -15,7 +17,8 @@
   var base = null, baseKey = '';
   var w = 0, target = null, time = 0, dirty = true, visible = true;
   var ocean = new E.Ocean(0), st = ocean.state();
-  var opts = { iso: true, ghost: true, motion: true };
+  var opts = { iso: false, ghost: true, motion: true };
+  var subj = 'earth';
   var flow = D.makeFlow(70, 46);
   var windP = D.makeWind(64);
   var themeTick = 0;
@@ -78,7 +81,7 @@
 
   // 무역풍 상태를 바꾼다. '움직임'이 꺼져 있으면 바다도 곧바로 새 상태로
   function setWind(v) {
-    w = clamp(v, -1, 1);
+    w = clamp(v, -1, subj === 'integrated' ? 0 : 1);
     if (!opts.motion && !replay.on) settleNow();
     update();
   }
@@ -119,9 +122,24 @@
     replay.on = false;
     var b = $('replay-play');
     b.setAttribute('aria-pressed', 'false'); b.lastElementChild.textContent = '재생';
-    $('ro-nino-obs').hidden = true;
     update();
   }
+
+  // 과목 바꾸기: 통합과학은 무역풍 강화(라니냐)와 실제 바람 실험을 숨긴다. 지금 상태는 그대로 이어 간다
+  M.subject = function (s) {
+    subj = s;
+    if (s === 'integrated') {
+      stopReplay();
+      slider.max = 0;
+      if (target != null && target > 0) target = 0;
+      if (w > 0) { if (opts.motion) target = 0; else setWind(0); }
+    } else {
+      slider.max = 100;
+    }
+    slider.value = Math.round(w * 100);
+    baseKey = '';
+    update();
+  };
 
   function resize() {
     var wd = Math.round(stage.clientWidth);
@@ -146,23 +164,30 @@
     var t = D.theme();
     D.drawSky(b, L);
     D.drawOcean(b, L, s, 'temp');
-    var band = D.drawThermocline(b, L, s, { mode: 'temp' });
-    if (opts.iso) D.drawIsotherms(b, L, s, { mode: 'temp', labels: true });
+    var fs = clamp(11 * L.u + 3, 10.5, 14), band = null;
+    if (subj === 'earth') {
+      band = D.drawThermocline(b, L, s, { mode: 'temp', thin: true });
+      if (opts.iso) D.drawIsotherms(b, L, s, { mode: 'temp', labels: true, skip20: true });
+    }
     if (opts.ghost) D.drawGhost(b, L, s, { mode: 'temp' });
+    D.drawIso20(b, L, s, { label: '20 ℃', labelLon: 226 });
     D.drawLand(b, L, s, { names: true });
     D.drawAxes(b, L);
     D.drawFlowGlyphs(b, L, s, { labels: true });
 
-    // 층 이름
-    var fs = clamp(11 * L.u + 3, 10.5, 14);
-    var lonT = 184, colT = E.column(lonT, s);
-    var yBandMid = (L.zToY(colT.M) + L.zToY(colT.D15)) / 2;
-    D.text(b, '수온 약층', L.lonToX(lonT), yBandMid, { size: fs, weight: 700, color: '#0f1d26', haloColor: 'rgba(255,255,255,0.8)' });
+    // 층 이름: 지구과학은 혼합층·수온 약층, 통합과학은 따뜻한 해수층
     var colW = E.column(160, s);
-    if (L.zToY(colW.M) - L.ySL > fs * 2) {
-      D.text(b, '혼합층', L.lonToX(160), (L.ySL + L.zToY(colW.M)) / 2 + 2, { size: fs, weight: 700, color: '#3a0a06', haloColor: 'rgba(255,235,220,0.85)' });
+    if (subj === 'earth') {
+      var colT = E.column(184, s);
+      D.text(b, '수온 약층', L.lonToX(184), (L.zToY(colT.M) + L.zToY(colT.D15)) / 2, { size: fs, weight: 700, color: '#0f1d26', haloColor: 'rgba(255,255,255,0.8)' });
+      if (L.zToY(colW.M) - L.ySL > fs * 2) {
+        D.text(b, '혼합층', L.lonToX(160), (L.ySL + L.zToY(colW.M)) / 2 + 2, { size: fs, weight: 700, color: '#3a0a06', haloColor: 'rgba(255,235,220,0.85)' });
+      }
+      D.text(b, '차가운 심층', L.lonToX(184), L.zToY(262), { size: fs - 1, weight: 600, color: '#e6f0ff', haloColor: 'rgba(10,30,70,0.55)' });
+    } else {
+      D.text(b, '따뜻한 해수층', L.lonToX(160), (L.surfY(160, s) + L.zToY(colW.D)) / 2 + 4, { size: fs + 1, weight: 800, color: '#3a0a06', haloColor: 'rgba(255,235,220,0.85)' });
+      D.text(b, '차가운 바닷물', L.lonToX(200), L.zToY(250), { size: fs, weight: 700, color: '#e6f0ff', haloColor: 'rgba(10,30,70,0.55)' });
     }
-    D.text(b, '차가운 심층', L.lonToX(184), L.zToY(262), { size: fs - 1, weight: 600, color: '#e6f0ff', haloColor: 'rgba(10,30,70,0.55)' });
 
     // 서·동 읽기 지점
     [[E.PROBE_W, '서'], [E.PROBE_E, '동']].forEach(function (p) {
@@ -184,9 +209,11 @@
     var f = ocean.fronts();
     if (!f) return;
     var fs = clamp(10.5 * L.u + 3, 10, 13.5), pulse = opts.motion ? 0.5 + 0.5 * Math.sin(time * 7) : 1;
-    [['east', f.east, f.warm ? '수온 약층 깊어짐 →' : '수온 약층 얕아짐 →'], ['west', f.west, f.warm ? '← 얕아짐' : '← 깊어짐']].forEach(function (q) {
+    var words = subj === 'integrated' ? [f.warm ? '따뜻한 해수층 두꺼워짐 →' : '따뜻한 해수층 얇아짐 →', f.warm ? '← 얇아짐' : '← 두꺼워짐']
+      : [f.warm ? '수온 약층 깊어짐 →' : '수온 약층 얕아짐 →', f.warm ? '← 얕아짐' : '← 깊어짐'];
+    [['east', f.east, words[0]], ['west', f.west, words[1]]].forEach(function (q) {
       if (q[1] == null) return;
-      var lon = q[1], x = L.lonToX(lon), y = L.zToY(E.mixedLayer(lon, st));
+      var lon = q[1], x = L.lonToX(lon), y = L.zToY(E.iso20(lon, st));
       c.save();
       var g = c.createRadialGradient(x, y, 0, x, y, 18 * L.u + 6);
       g.addColorStop(0, 'rgba(255,236,120,' + (0.55 + 0.35 * pulse).toFixed(2) + ')');
@@ -196,13 +223,22 @@
       c.fillStyle = '#ffe36a'; c.strokeStyle = 'rgba(40,30,0,0.7)'; c.lineWidth = 1.5;
       c.beginPath(); c.arc(x, y, 3.5 * L.u + 2, 0, Math.PI * 2); c.fill(); c.stroke();
       c.restore();
-      var right = q[0] === 'east';
+      // 이름표는 진행 방향 쪽에 두되, 그림 가장자리에 가까우면 반대쪽으로 (잘리지 않게)
+      var right = q[0] === 'east' ? x < W * 0.6 : x < W * 0.35;
       D.pill(c, q[2], x + (right ? 10 : -10), y + fs * 1.7, { size: fs - 0.5, bg: 'rgba(30,24,0,0.82)', fg: '#ffe36a', align: right ? 'left' : 'right' });
     });
   }
 
+  // 통합과학: 비가 많이 오는 곳(따뜻한 바다 위 상승 기류의 구름·비, 실측 강수 중심 경도)
+  function drawRain(c) {
+    var wk = E.walker(st), skyH = L.ySL - L.padT, r = (10 + 8 * wk.convection) * clamp(W / 800, 0.6, 1.1);
+    var x = clamp(L.lonToX(wk.rise), L.ox0 + r, L.ox1 - r), y = L.padT + skyH * 0.2 + r * 0.3;
+    D.rain(c, x, y + r * 0.45, L.ySL - 2, r * 1.6, Math.round(4 + 4 * wk.convection), opts.motion ? time : 0, 0.8);
+    D.cloud(c, x, y, r);
+  }
+
   function draw(dt) {
-    var key = [E.skey(st), W, H, opts.iso, opts.ghost, themeTick].join('|');
+    var key = [E.skey(st), W, H, opts.iso, opts.ghost, subj, themeTick].join('|');
     if (key !== baseKey) { buildBase(); baseKey = key; }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -212,6 +248,7 @@
       D.drawFlow(ctx, L, st, flow);
     }
     D.drawFishery(ctx, L, st, time);
+    if (subj === 'integrated') drawRain(ctx);
     D.drawTradeWind(ctx, L, st, windP, opts.motion ? dt : 0, { labels: true });
     drawFronts(ctx);
   }
@@ -292,6 +329,21 @@
     setD($('ro-sst-dw'), sw - E.sst(pw, 0), 1, '°C');
     setD($('ro-sst-de'), se - E.sst(pe, 0), 1, '°C');
 
+    // 지구과학 기본: 20 ℃ 등온선 깊이(수온 약층 깊이의 대표 지표)
+    var iw = E.iso20(pw, s), ie = E.iso20(pe, s);
+    $('ro-iso-w').textContent = fmt(iw, 0);
+    $('ro-iso-e').textContent = fmt(ie, 0);
+    $('ro-iso-bw').style.width = clamp(iw / 220, 0.03, 1) * 100 + '%';
+    $('ro-iso-be').style.width = clamp(ie / 220, 0.03, 1) * 100 + '%';
+    setD($('ro-iso-dw'), iw - E.iso20(pw, 0), 0, 'm', ['깊어짐', '얕아짐']);
+    setD($('ro-iso-de'), ie - E.iso20(pe, 0), 0, 'm', ['깊어짐', '얕아짐']);
+    // 통합과학 기본: 무역풍 세기, 비가 많이 오는 곳(실측 강수 중심 경도로 정한 모형 값)
+    $('ro-wind').textContent = Math.round(wind * 100);
+    $('ro-wind-b').style.width = clamp(wind / 1.4, 0.03, 1) * 100 + '%';
+    var rise = E.walker(s).rise;
+    $('ro-rain').textContent = rise < 166 ? '서태평양 (인도네시아 부근)' : '중앙 태평양 쪽으로 이동';
+    $('ro-rain-s').textContent = rise < 166 ? '따뜻한 바다 위에서 공기가 올라가 구름이 생기고 비가 내려요.' : '따뜻한 바닷물을 따라 구름과 비가 동쪽으로 옮겨 가요.';
+
     $('ro-mld-w').textContent = fmt(mw, 0);
     $('ro-mld-e').textContent = fmt(me, 0);
     $('ro-mld-bw').style.width = clamp(mw / 100, 0.03, 1) * 100 + '%';
@@ -307,6 +359,8 @@
     var bars = clamp(Math.round(U / 1.96 * 5), 1, 5);
     Array.prototype.forEach.call($('ro-up').children, function (el, i) { el.className = i < bars ? 'on' : ''; });
     $('ro-up').setAttribute('aria-label', '용승 세기 5단계 중 ' + bars);
+    $('ro-up-t').textContent = subj === 'integrated' ? (U < 0.9 ? '약해짐' : U > 1.1 ? '강해짐' : '활발') : '';
+    $('ro-up-t').className = 'ro-d' + (U < 0.9 ? ' dn' : U > 1.1 ? ' up' : '');
 
     $('ro-diff').textContent = fmt(diff, 0);
     var k = 0.2;
@@ -324,16 +378,16 @@
 
     // 시계: 재생 중이면 연·월과 NOAA 공식 판정, 아니면 바람이 바뀐 뒤 흐른 달
     var settled = ocean.settled() && target == null;
-    var f = ocean.fronts(), obsEl = $('ro-nino-obs');
+    var f = ocean.fronts();
     if (replay.on) {
       var i = replay.i0 + Math.floor(replay.t), stt = MON.state[i], obs = MON.nino34[i];
       clock.textContent = ymOf(i) + ' · NOAA 판정 ' + (stt === 1 ? '엘니뇨' : stt === -1 ? '라니냐' : stt === 0 ? '중립' : '자료 없음');
       clock.className = 'clock on replay';
-      obsEl.hidden = false;
-      obsEl.textContent = obs == null ? '실제 자료 없음' : '실제 ' + signed(obs, 1) + ' °C';
+      $('replay-cmp').hidden = false;
+      $('replay-model').textContent = signed(a, 1) + ' °C';
+      $('replay-obs').textContent = obs == null ? '자료 없음' : signed(obs, 1) + ' °C';
       $('replay-prog').style.width = (replay.t / replay.n * 100).toFixed(1) + '%';
     } else {
-      obsEl.hidden = true;
       if (!settled && f) {
         clock.textContent = '바람이 바뀐 뒤 ' + f.elapsed.toFixed(1) + '개월';
         clock.className = 'clock on';
@@ -364,12 +418,14 @@
     chain('trans', dw < 0 ? '▼ 줄어듦' : dw > 0 ? '▲ 늘어남' : '서쪽에 쌓임', cw, windLive);
     chain('up', dw < 0 ? '▼ 약해짐' : dw > 0 ? '▲ 강해짐' : '활발', cw, windLive);
     chain('sste', (dsst > 0 ? '▲ ' : dsst < 0 ? '▼ ' : '') + fmt(se, 1) + ' °C', dsst > 0 ? 'p-nino' : dsst < 0 ? 'p-nina' : '', Math.abs(se - eqE) > 0.08);
+    chain('rain', rise < 166 ? '서태평양' : '▶ 중앙 태평양 쪽', rise < 166 ? '' : 'p-nino', Math.abs(rise - E.walker(w).rise) > 2);
     chain('tilt', dtilt < 0 ? '완만해짐' : dtilt > 0 ? '급해짐' : '서쪽이 깊음', dtilt < 0 ? 'p-nino' : dtilt > 0 ? 'p-nina' : '', Math.abs(diff - eqDiff) > 1);
     chain('sl', dtilt < 0 ? '서·동 차이 줄어듦' : dtilt > 0 ? '서·동 차이 커짐' : '서쪽이 높음', dtilt < 0 ? 'p-nino' : dtilt > 0 ? 'p-nina' : '', Math.abs(diff - eqDiff) > 1);
 
     cv.setAttribute('aria-label', '적도 태평양 연직 단면. 무역풍 ' + out.textContent +
-      '. 서태평양 표층 수온 ' + fmt(sw, 1) + '도, 동태평양 ' + fmt(se, 1) + '도. 수온 약층 시작 깊이 서 ' +
-      fmt(mw, 0) + '미터, 동 ' + fmt(me, 0) + '미터. 해수면 높이 차 ' + fmt(diff, 0) + '센티미터.' +
+      '. 서태평양 표층 수온 ' + fmt(sw, 1) + '도, 동태평양 ' + fmt(se, 1) + '도. ' +
+      (subj === 'integrated' ? '비가 많이 오는 곳 ' + $('ro-rain').textContent + '.'
+        : '20도 등온선 깊이 서 ' + fmt(iw, 0) + '미터, 동 ' + fmt(ie, 0) + '미터. 해수면 높이 차 ' + fmt(diff, 0) + '센티미터.') +
       (clock.textContent ? ' ' + clock.textContent + '.' : ''));
     dirty = true;
   }

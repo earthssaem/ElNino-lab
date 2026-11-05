@@ -1,4 +1,5 @@
-/* ② 세 상태 비교: 평상시 · 엘니뇨 · 라니냐를 나란히 */
+/* ② 세 상태 비교: 평상시 · 엘니뇨 · 라니냐를 나란히 (통합과학은 평상시 · 엘니뇨 두 그림, M.subject)
+ * 세 그림은 같은 색 범위·같은 수심 축(0~300 m)을 쓰고, 20 ℃ 등온선을 굵은 실선, 평상시 20 ℃ 를 점선으로 그린다. */
 (function () {
   'use strict';
   var E = window.ENSO, D = window.ENSODraw;
@@ -6,7 +7,8 @@
 
   var M = {};
   var panels = [];
-  var opts = { mode: 'temp', walker: true, flow: true, iso: false, motion: true };
+  var opts = { mode: 'temp', walker: false, flow: true, iso: false, motion: true };
+  var subj = 'earth';
   var probeLon = null;
   var time = 0, dirty = true, visible = false, themeTick = 0;
 
@@ -99,9 +101,10 @@
     b.clearRect(0, 0, p.W, p.H);
     D.drawSky(b, L);
     D.drawOcean(b, L, s, opts.mode);
-    D.drawThermocline(b, L, s, { mode: opts.mode });
-    if (opts.iso) D.drawIsotherms(b, L, s, { mode: opts.mode, labels: L.w > 300 });
-    if (s !== 0) D.drawGhost(b, L, s, { mode: opts.mode });
+    if (subj === 'earth') D.drawThermocline(b, L, s, { mode: opts.mode, thin: true });
+    if (opts.iso && subj === 'earth') D.drawIsotherms(b, L, s, { mode: opts.mode, labels: L.w > 300, skip20: true });
+    if (!E.near0(s)) D.drawGhost(b, L, s, { mode: opts.mode });
+    D.drawIso20(b, L, s, { mode: opts.mode, label: L.w > 300 ? '20 ℃' : '', labelLon: 226 });
     D.drawLand(b, L, s, {});
     if (opts.flow) D.drawFlowGlyphs(b, L, s, { labels: false });
     // 서 · 동
@@ -113,7 +116,7 @@
 
   function drawPanel(p, dt) {
     var L = p.L, s = p.s, ctx = p.ctx;
-    var key = [s, p.W, p.H, opts.mode, opts.iso, opts.flow, themeTick].join('|');
+    var key = [s, p.W, p.H, opts.mode, opts.iso, opts.flow, subj, themeTick].join('|');
     if (key !== p.baseKey) { buildBase(p); p.baseKey = key; }
     ctx.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
     ctx.clearRect(0, 0, p.W, p.H);
@@ -157,8 +160,14 @@
     if (!visible) return;
     if (!opts.motion && !dirty) return;
     if (opts.motion) time += dt;
-    panels.forEach(function (p) { if (p.L) drawPanel(p, opts.motion ? dt : 0); });
+    panels.forEach(function (p) { if (p.L && p.fig.offsetParent !== null) drawPanel(p, opts.motion ? dt : 0); });   // 숨긴 그림(통합과학의 라니냐)은 건너뜀
     dirty = false;
+  };
+  M.subject = function (s) {
+    subj = s;
+    panels.forEach(function (p) { p.baseKey = ''; p.W = 0; });
+    if (visible) panels.forEach(resize);
+    dirty = true;
   };
   M.show = function () { visible = true; dirty = true; panels.forEach(resize); };
   M.hide = function () { visible = false; };
