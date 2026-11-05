@@ -1,5 +1,7 @@
 /* 화면 상태와 조작 (엘니뇨·라니냐 실측자료 탐구실)
-   모든 패널(지도·바람·단면·등온선·관측값·시계열)은 같은 연·월(state.ym)의 자료로 함께 갱신된다. */
+   모든 패널(지도·바람·단면·등온선·관측값·시계열)은 같은 연·월(state.ym)의 자료로 함께 갱신된다.
+   과목(../js/lab.js, window.LAB): 통합과학은 엘니뇨 사례·지도(해수면 온도·강수량·바람)만 보여 주고
+   라니냐 사례·수온 단면·시계열·Niño 3.4·공식 판정 상세는 숨긴다. 과목이 없으면 지구과학(전체 기능). 자료 값은 과목과 관계없이 같다. */
 (function () {
   'use strict';
 
@@ -16,6 +18,13 @@
     playing: false
   };
   var maps = [], secs = [], series = null, timer = null;
+  var LAB = window.LAB;
+  function subj() { return LAB && LAB.get() === 'integrated' ? 'integrated' : 'earth'; }
+  function simple() { return subj() === 'integrated'; }
+  var MAP_HELP = {
+    earth: '지도를 누르면 그 위치의 관측값을 보여 줍니다. 단면 영역(2°S~2°N, 점선 띠)을 누르면 아래 단면에도 같은 경도가 표시됩니다.',
+    integrated: '지도를 누르면 그 위치의 해수면 온도·강수량·바람 관측값을 보여 줍니다.'
+  };
 
   /* ---------- 공통 ---------- */
   function caseMonths() { return OBS.caseInfo(state.caseId).months; }
@@ -85,12 +94,12 @@
     var probeLon = state.col === null ? null : g.lon[state.col];
     var reg = $('seriesFold').open ? region() : null;
     months.forEach(function (ym, i) {
-      maps[i].draw({ ym: ym, layer: state.layer, mode: state.mapMode, arrows: state.arrows, probeLon: probeLon, click: state.click, region: reg });
+      maps[i].draw({ ym: ym, layer: state.layer, mode: state.mapMode, arrows: state.arrows, probeLon: simple() ? null : probeLon, click: state.click, region: reg, simple: simple() });
       var probe = null;
       if (state.col !== null) {
         probe = { cur: OBS.isoLine(OBS.value('section', ym))[state.col], clim: OBS.isoLine(OBS.climOf('section', ym))[state.col] };
       }
-      secs[i].draw({ ym: ym, mode: state.secMode, iso: state.iso, probeLon: probeLon, probe: probe });
+      if (!simple()) secs[i].draw({ ym: ym, mode: state.secMode, iso: state.iso, probeLon: probeLon, probe: probe });   // 통합과학은 단면을 숨김
       labelCanvas(maps[i].canvas, secs[i].canvas, ym, probe);
       var tags = document.querySelectorAll('.view-tag span');
       if (state.compare) { tags[i].textContent = OBS.fmtMonth(ym); tags[i + 2].textContent = OBS.fmtMonth(ym); }
@@ -99,7 +108,7 @@
     updateTimebar();
     sliderYears();
     updateReadouts();
-    if ($('seriesFold').open) drawSeries();
+    if ($('seriesFold').open && !simple()) drawSeries();
   }
 
   function labelCanvas(mc, sc, ym, probe) {
@@ -131,7 +140,7 @@
     };
     var n = notes[state.layer] + (state.mapMode === 'anom' ? ' · 편차 = 그 달 − 같은 달 1991~2020 평년' : '') + ' · 양 끝 칸은 범위 밖 값 포함';
     if (state.arrows) n += ' · 화살표: NCEP/NCAR R1 10 m 바람 격자점 값(' + (maps[0] ? maps[0].step() : 3) + '점마다 하나), 바람이 향하는 방향';
-    n += ' · 점선 띠: 단면 영역(2°S~2°N), 점선 상자: Niño 3.4 감시 구역';
+    if (!simple()) n += ' · 점선 띠: 단면 영역(2°S~2°N), 점선 상자: Niño 3.4 감시 구역';
     $('mapNote').textContent = n;
     $('mapSub').textContent = (state.layer === 'sst' ? '해수면 온도' : '강수량') + (state.mapMode === 'anom' ? ' 평년 편차' : '') + ' · 30°S~30°N';
   }
@@ -144,13 +153,22 @@
     $('nowMonth').textContent = OBS.fmtMonth(state.ym);
     var si = OBS.series.months.indexOf(state.ym), a = OBS.series.nino34.anom[si], es = OBS.ensoState(state.ym);
     var tag = $('nowState');
-    tag.textContent = OBS.ensoName(es);
-    tag.setAttribute('data-state', es === 1 ? 'nino' : es === -1 ? 'nina' : 'neutral');
-    $('nowSub').textContent = 'Niño 3.4 편차 ' + (a === null ? '자료 없음' : OBS.sign(a, 2) + ' °C');
     var c = OBS.caseInfo(state.caseId);
-    $('caseNote').innerHTML = '<b>' + c.name + '</b> · 공식 ' + (c.phase === 'nino' ? '엘니뇨' : '라니냐') + ' 기간(NOAA CPC RONI): <b>' +
-      periodText(c.official) + '</b> · 자료 탐색 기간: ' + OBS.fmtMonth(c.start) + '~' + OBS.fmtMonth(c.end) +
-      ' <span class="cn-help">(월별 상태 표시는 NOAA 공식 판정, 막대 아래 색 띠 = 공식 엘니뇨·라니냐 기간)</span>';
+    if (simple()) {   // 통합과학: 엘니뇨 시기인 달만 표시하고, 판정 지수의 상세는 보이지 않음
+      tag.hidden = es !== 1;
+      tag.textContent = '엘니뇨 시기';
+      tag.setAttribute('data-state', 'nino');
+      $('caseNote').innerHTML = '<b>' + c.name + '</b> · 엘니뇨가 나타난 기간: <b>' + periodText(c.official) + '</b> · 자료 기간: ' +
+        OBS.fmtMonth(c.start) + '~' + OBS.fmtMonth(c.end) + ' <span class="cn-help">(막대 아래 빨간 띠 = 엘니뇨가 나타난 기간, NOAA 판정)</span>';
+    } else {
+      tag.hidden = false;
+      tag.textContent = OBS.ensoName(es);
+      tag.setAttribute('data-state', es === 1 ? 'nino' : es === -1 ? 'nina' : 'neutral');
+      $('caseNote').innerHTML = '<b>' + c.name + '</b> · 공식 ' + (c.phase === 'nino' ? '엘니뇨' : '라니냐') + ' 기간(NOAA CPC RONI): <b>' +
+        periodText(c.official) + '</b> · 자료 탐색 기간: ' + OBS.fmtMonth(c.start) + '~' + OBS.fmtMonth(c.end) +
+        ' <span class="cn-help">(월별 상태 표시는 NOAA 공식 판정, 막대 아래 색 띠 = 공식 엘니뇨·라니냐 기간)</span>';
+    }
+    $('nowSub').textContent = 'Niño 3.4 편차 ' + (a === null ? '자료 없음' : OBS.sign(a, 2) + ' °C');
     $('prevBtn').disabled = i <= 0;
     $('nextBtn').disabled = i >= ms.length - 1;
     document.querySelectorAll('#phaseGroup button').forEach(function (b) {
@@ -361,10 +379,13 @@
     ensure(viewMonths()).then(drawAll);
   }
 
+  // 시기 비교 목록: 통합과학은 엘니뇨 사례 기간만
   function fillPickers() {
     ['pickA', 'pickB'].forEach(function (id) {
       var sel = $(id);
+      sel.innerHTML = '';
       OBS.meta.cases.forEach(function (c) {
+        if (simple() && c.phase !== 'nino') return;
         var og = document.createElement('optgroup');
         og.label = c.name + ' (자료 ' + fmtShort(c.start) + '~' + fmtShort(c.end) + ')';
         c.months.forEach(function (m) {
@@ -374,8 +395,13 @@
         });
         sel.appendChild(og);
       });
-      sel.addEventListener('change', function () {
-        state[id === 'pickA' ? 'A' : 'B'] = sel.value;
+      if (sel.value !== state[id === 'pickA' ? 'A' : 'B'] && state[id === 'pickA' ? 'A' : 'B']) sel.value = state[id === 'pickA' ? 'A' : 'B'];
+    });
+  }
+  function bindPickers() {
+    ['pickA', 'pickB'].forEach(function (id) {
+      $(id).addEventListener('change', function () {
+        state[id === 'pickA' ? 'A' : 'B'] = $(id).value;
         ensure(viewMonths()).then(drawAll);
       });
     });
@@ -423,6 +449,7 @@
     // 공식 엘니뇨·라니냐 기간 띠(NOAA CPC RONI). 한 달 = 슬라이더 눈금 한 칸
     var band = '';
     OBS.caseInfo(state.caseId).episodes.forEach(function (e) {
+      if (simple() && e.phase !== 'nino') return;   // 통합과학: 엘니뇨 기간만
       var a = ms.indexOf(e.start), b = ms.indexOf(e.end);
       var l = Math.max(0, (a - 0.5) / n * 100), r = Math.min(100, (b + 0.5) / n * 100);
       band += '<i class="ep-' + e.phase + '" style="left:' + l + '%;width:' + (r - l) + '%" title="공식 ' +
@@ -455,6 +482,24 @@
 
   function buildSources() {
     var m = OBS.meta;
+    if (simple()) {   // 통합과학: 화면에 쓰는 자료(해수면 온도·강수량·바람)만 간단히
+      $('sources').innerHTML =
+        '<p class="src-lead">이 화면의 지도는 아래 공식 자료를 내려받아 가공한 <b>실제 관측·분석·재분석 자료</b>입니다. 임의로 만든 값은 없으며, 자료가 없는 곳은 회색으로 둡니다. ' +
+        '평년 편차는 <b>1991~2020년 같은 달 평균</b>과의 차이입니다. 자료 생성일 ' + m.generated + '.</p>' +
+        '<div class="table-wrap"><table><thead><tr><th>화면 요소</th><th>자료</th><th>해상도</th></tr></thead><tbody>' +
+        '<tr><td>해수면 온도</td><td><a href="https://www.ncei.noaa.gov/products/extended-reconstructed-sst" target="_blank" rel="noopener">NOAA ERSST v5</a></td><td>2° × 2°, 월평균, °C</td></tr>' +
+        '<tr><td>강수량</td><td><a href="https://www.ncei.noaa.gov/products/climate-data-records/precipitation-gpcp-monthly" target="_blank" rel="noopener">GPCP Monthly v2.3</a></td><td>2.5° × 2.5°, 월 합계, mm/월</td></tr>' +
+        '<tr><td>바람 화살표</td><td><a href="https://psl.noaa.gov/data/gridded/data.ncep.reanalysis.html" target="_blank" rel="noopener">NCEP/NCAR Reanalysis 1</a> 10 m 바람</td><td>약 1.9° 격자, 월평균, m/s</td></tr>' +
+        '<tr><td>엘니뇨가 나타난 기간</td><td><a href="https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/" target="_blank" rel="noopener">NOAA 기후예측센터(CPC)</a> 공식 판정</td><td>3개월 이동 평균</td></tr>' +
+        '</tbody></table></div>' +
+        '<h3>주의</h3><ul>' +
+        '<li>엘니뇨는 해마다 모습이 조금씩 달라요. 전형적인 모습과 다르더라도 자료를 고치지 않았습니다.</li>' +
+        '<li>엘니뇨 때도 무역풍이 늘 반대 방향(서풍)으로 바뀌는 것은 아닙니다. 화살표는 실제 자료 그대로입니다.</li>' +
+        '<li>색 범위는 고정되어 있고, 범위 밖 값은 양 끝 색으로 칠합니다.</li>' +
+        '</ul>' +
+        '<p class="src-foot">수온 단면·시계열 등 더 자세한 자료는 지구과학 과목 화면에서 볼 수 있습니다.</p>';
+      return;
+    }
     $('sources').innerHTML =
       '<p class="src-lead">이 웹앱의 모든 지도·단면·그래프는 아래 공식 자료를 내려받아 가공한 <b>실제 관측·분석·재분석 자료</b>입니다. ' +
       '임의로 만든 값은 없으며, 원자료의 결측은 채우지 않고 회색(자료 없음)으로 둡니다. 모든 편차는 <b>1991~2020년 같은 달 평년값</b>을 원자료에서 직접 계산해 구했습니다. ' +
@@ -506,11 +551,29 @@
     stop();
     if (state.compare) setCompare(false);
     state.click = null; state.col = null; state.clickDepth = null;
-    $('mapReadout').textContent = '지도를 누르면 그 위치의 관측값을 보여 줍니다. 단면 영역(2°S~2°N, 점선 띠)을 누르면 아래 단면에도 같은 경도가 표시됩니다.';
+    $('mapReadout').textContent = MAP_HELP[subj()];
     $('secReadout').textContent = '단면을 누르면 그 경도의 20 ℃ 등온선 깊이를 잽니다. 단면을 고른 뒤 ←/→ 키로 1°씩 옮길 수 있습니다.';
     window.scrollTo(0, 0);
     state.lastCase = { nino: 'nino2023', nina: 'nina2020' };
     setCase(DEFAULT.caseId);
+  }
+
+  /* ---------- 과목 ---------- */
+  // 통합과학으로 바꿀 때 라니냐 사례·라니냐 달 비교였으면 엘니뇨 쪽으로 옮긴다. 지금 보던 달·지도 설정은 그대로 둔다
+  function applySubject(redraw) {
+    var s = simple();
+    if (!state.click) $('mapReadout').textContent = MAP_HELP[subj()];
+    if (s && state.phase === 'nina') {
+      if (state.compare) setCompare(false);
+      setCase(state.lastCase.nino);
+    }
+    if (s && state.compare) {
+      var ok = function (ym) { return OBS.casesWith(ym).some(function (c) { return c.phase === 'nino'; }); };
+      if (!ok(state.A) || !ok(state.B)) { state.B = caseMonths().indexOf(state.ym) >= 0 ? state.ym : caseMonths()[0]; state.A = caseMonths()[0]; }
+    }
+    fillPickers();
+    buildSources();
+    if (redraw) ensure(viewMonths()).then(drawAll);
   }
 
   /* ---------- 시작 ---------- */
@@ -518,6 +581,7 @@
     OBS.load().then(function () {
       buildCases();
       fillPickers();
+      bindPickers();
       buildSources();
       var rs = $('regionSel');
       OBS.meta.regions.wind.forEach(function (r) {
@@ -544,6 +608,8 @@
       $('homeLink').addEventListener('click', home);
 
       buildViews();
+      applySubject(false);
+      if (LAB) LAB.onChange(function () { applySubject(true); });
       return ensure(caseMonths());
     }).then(function () {
       sliderYears();

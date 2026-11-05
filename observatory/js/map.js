@@ -103,8 +103,9 @@
       for (var la = -20; la <= 20; la += 10) { ctx.moveTo(M.l, Y(la)); ctx.lineTo(M.l + pw, Y(la)); }
       ctx.stroke();
 
-      // 단면 영역 띠(2°S~2°N, GODAS 단면 경도 범위)
+      // 단면 영역 띠(2°S~2°N, GODAS 단면 경도 범위)와 Niño 3.4 감시 구역 — 통합과학 화면(st.simple)에서는 그리지 않음
       var sg = OBS.meta.grids.section, b0 = sg.lon[0] - 0.5, b1 = sg.lon[sg.lon.length - 1] + 0.5;
+      if (!st.simple) {
       ctx.fillStyle = 'rgba(255,255,255,.18)';
       ctx.fillRect(X(b0), Y(2), X(b1) - X(b0), Y(-2) - Y(2));
       ctx.setLineDash([5, 3]); ctx.strokeStyle = 'rgba(15,25,45,.85)'; ctx.lineWidth = 1;
@@ -113,6 +114,7 @@
       var nb = OBS.meta.regions.nino34;
       ctx.setLineDash([2, 3]); ctx.strokeStyle = 'rgba(15,25,45,.7)';
       ctx.strokeRect(X(nb.lon[0]), Y(nb.lat[1]), X(nb.lon[1]) - X(nb.lon[0]), Y(nb.lat[0]) - Y(nb.lat[1]));
+      }
       if (st.region) {
         ctx.setLineDash([]); ctx.strokeStyle = css('--wind-line'); ctx.lineWidth = 1.6;
         ctx.strokeRect(X(st.region.lon[0]), Y(st.region.lat[1]), X(st.region.lon[1]) - X(st.region.lon[0]), Y(st.region.lat[0]) - Y(st.region.lat[1]));
