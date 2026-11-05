@@ -1,12 +1,15 @@
-/* 대화로 배우는 엘니뇨: 적도 단면 그림, 그림 위 캐릭터, 대화 진행
- * 대본은 script.js(window.STORY). 수온·수온약층·해수면·용승은 ../js/model.js(window.ENSO),
- * 바다·육지·무역풍·물고기·구름 그리기는 ../js/draw.js(window.ENSODraw)를 그대로 쓴다.
+/* 대화로 배우는 엘니뇨: 적도 단면 그림, 그림 위 캐릭터, 대화 진행 (과목별 대본)
+ * 대본은 script.js(window.STORY.stepsFor(과목)). 수온·수온약층·해수면·용승·기압은 ../js/model.js(window.ENSO),
+ * 바다·육지·무역풍·물고기·구름·워커 순환 그리기는 ../js/draw.js(window.ENSODraw)를 그대로 쓴다.
+ * 과목은 ../js/lab.js(window.LAB). 없으면 통합과학. 과목을 바꾸면 같은(없으면 가장 가까운) 단계에서 이어 간다.
  */
 (function () {
   'use strict';
   var E = window.ENSO, D = window.ENSODraw, S = window.STORY;
   var clamp = E.clamp;
-  var STEPS = S.STEPS, CH = S.CH;
+  var CH = S.CH, LAB = window.LAB;
+  function subjectNow() { return LAB && LAB.get() === 'earth' ? 'earth' : 'integrated'; }
+  var subj = subjectNow(), STEPS = S.stepsFor(subj);
 
   function $(id) { return document.getElementById(id); }
 
@@ -18,6 +21,7 @@
   var flow = D.makeFlow(70, 46), windP = D.makeWind(64);
   var cur = 0, li = 0, shownStep = -1, answers = {};
   var st = null;          // 지금 대사의 상태 {s, badge, show, cast, hl, who, mood}
+  var wkGeo = null, prGeo = null;   // 이번 프레임에 그린 워커 순환·기압 표시의 위치(밝게 비추기·캐릭터 자리에 씀)
   var castKey = '', avSize = 40;
 
   var motion = true;
@@ -33,9 +37,13 @@
         var ln = lines[q];
         if (ln.s != null) o.s = ln.s;
         if (ln.badge) o.badge = ln.badge;
-        (ln.show || []).forEach(function (x) { o.show[x] = true; });
+        (ln.show || []).forEach(function (x) { if (x.charAt(0) === '-') delete o.show[x.slice(1)]; else o.show[x] = true; });
         o.cast[ln.who] = true;
-        if (ln.ask && answers[k + '-' + q]) { o.s = ln.ask.reveal; o.badge = ln.ask.badge; }
+        if (ln.ask && answers[STEPS[k].id + '-' + q]) {
+          if (ln.ask.reveal != null) o.s = ln.ask.reveal;
+          if (ln.ask.badge) o.badge = ln.ask.badge;
+          (ln.ask.show || []).forEach(function (x) { o.show[x] = true; });
+        }
       }
     }
     var c = STEPS[i].lines[j];
@@ -115,9 +123,10 @@
       for (var lon = E.LON_W; lon <= E.LON_E; lon += 5) { var y = L.surfY(lon, s); lo = Math.min(lo, y); hi = Math.max(hi, y); }
       return [box(L.ox0 - 4, lo - fsz() * 1.7 - 4, L.ox1 + 4, hi + 12)];
     },
+    // 수온약층 띠(지구과학)와 20 ℃ 선(두 과목)을 모두 감싸도록
     thermo: function () {
-      var m1 = E.mixedLayer(135, s), m2 = E.mixedLayer(279, s);
-      return [box(L.ox0 - 4, L.zToY(Math.min(m1, m2)) - 10, L.ox1 + 4, L.zToY(Math.max(m1, m2) + 40))];
+      var top = Math.min(E.mixedLayer(135, s), E.mixedLayer(279, s)), bot = Math.max(E.iso20(140, s), E.iso20(160, s), E.iso20(279, s));
+      return [box(L.ox0 - 4, L.zToY(top) - 10, L.ox1 + 4, L.zToY(bot) + 14)];
     },
     up: function () { var g = geoUp(); return [box(g.x - g.th - g.fs * 2.6, g.yT - 8, g.x + g.th + 8, g.yB + 8)]; },
     fish: function () { return [box(L.lonToX(253), L.zToY(0) - 8, L.lonToX(279.8), L.zToY(25))]; },
@@ -126,7 +135,16 @@
       if (g.coast) R.push(box(g.cX - g.cR * 1.7, g.cY - g.cR * 1.2, g.cX + g.cR * 1.7, L.ySL + 3));
       return R;
     },
-    sink: function () { var g = geoAir(); return g.coast ? [] : [box(g.sunX - g.sunR * 2.2, g.sunY - g.sunR * 1.8, g.sunX + g.sunR * 2.2, L.ySL + 3)]; },
+    sink: function () {
+      if (wkGeo) { var x = wkGeo.sinkX, y = wkGeo.yB - (wkGeo.yB - wkGeo.yT) * 0.32; return [box(x - 36 * wkGeo.u, wkGeo.yT - 8, x + 30 * wkGeo.u, L.ySL + 3)]; }
+      var g = geoAir(); return g.coast ? [] : [box(g.sunX - g.sunR * 2.2, g.sunY - g.sunR * 1.8, g.sunX + g.sunR * 2.2, L.ySL + 3)];
+    },
+    walker: function () { return wkGeo ? [box(L.ox0 - 6, wkGeo.yT - wkGeo.cloudR * 1.2, L.ox1 + 6, wkGeo.yB + 10)] : []; },
+    rise: function () { return wkGeo ? [box(wkGeo.xR - wkGeo.cloudR * 1.7, wkGeo.yT - wkGeo.cloudR * 1.2, wkGeo.xR + wkGeo.cloudR * 1.7, wkGeo.yB + 8)] : REG.cloud(); },
+    lower: function () { return wkGeo ? [box(L.ox0 - 6, wkGeo.yB - 14, L.ox1 + 6, wkGeo.yB + 14)] : [geoWind()]; },
+    darwin: function () { return prGeo ? [prGeo.darwin] : []; },
+    tahiti: function () { return prGeo ? [prGeo.tahiti] : []; },
+    soi: function () { return prGeo && prGeo.soi ? [prGeo.soi] : []; },
     drywest: function () { return [box(L.padL + 1, L.padT + 2, L.lonToX(150), L.ySL + 6)]; }
   };
 
@@ -140,14 +158,23 @@
     D.drawSky(b, L);
     D.drawOcean(b, L, s, 'temp');
     if (sh.thermo) {
-      D.drawThermocline(b, L, s, { mode: 'temp' });
       var c = E.column(200, s);
-      D.text(b, '수온약층', L.lonToX(200), (L.zToY(c.M) + L.zToY(c.D + 53)) / 2, { size: fs, weight: 700, color: '#0f1d26', haloColor: 'rgba(255,255,255,0.8)' });
+      if (subj === 'earth') {   // 수온약층 띠(흰 선 = 시작 깊이)와 20 ℃ 등온선(굵은 선)
+        D.drawThermocline(b, L, s, { mode: 'temp', thin: true });
+        D.drawIso20(b, L, s, { label: '20 ℃', labelLon: 205 });
+        D.text(b, '수온약층', L.lonToX(200), (L.zToY(c.M) + L.zToY(c.D15)) / 2, { size: fs, weight: 700, color: '#0f1d26', haloColor: 'rgba(255,255,255,0.8)' });
+      } else {                  // 통합과학: 따뜻한 해수층과 그 아래 경계(진한 선)
+        D.drawIso20(b, L, s, {});
+        var cw = E.column(165, s);
+        D.text(b, '따뜻한 해수층', L.lonToX(165), (L.surfY(165, s) + L.zToY(cw.D)) / 2 + 6, { size: fs, weight: 800, color: '#3a0a06', haloColor: 'rgba(255,235,220,0.85)' });
+      }
     }
-    D.drawLand(b, L, s, { names: true });
+    // 워커 순환·기압 표시가 하늘을 채우는 단계에서는 땅 이름과 해수면 높이 차 표시를 감춘다(겹치지 않게)
+    var busy = sh.walker || sh.pressure;
+    D.drawLand(b, L, s, { names: !busy });
     D.text(b, '깊은 곳의 차가운 바닷물', L.lonToX(205), L.zToY(262), { size: fs - 1, weight: 600, color: '#e6f0ff', haloColor: 'rgba(10,30,70,0.55)' });
 
-    if (sh.sea) {
+    if (sh.sea && !busy) {
       // 동쪽 해수면 높이를 서쪽까지 점선으로 이어 높이 차를 보여 줌
       var yE = L.surfY(E.LON_E - 2, s), xW = L.lonToX(147), yW = L.surfY(147, s);
       b.save();
@@ -229,6 +256,46 @@
     if (g.dry) D.sun(c, g.dX, g.sunY, g.sunR * 0.9);   // 엘니뇨 때 인도네시아 쪽은 비가 줄어 맑고 건조
   }
 
+  // 워커 순환 고리(지구과학 PART C): ② 비교 그림과 같은 D.drawWalker
+  function drawWalkerLoop(c) {
+    var u = clamp(W / 560, 0.55, 1.1);
+    var g = D.drawWalker(c, function (lon, a) { return [L.lonToX(lon), L.ySL - 6 - a * (L.ySL - L.padT - 10)]; }, s, time, { u: u, motion: motion });
+    g.u = u; g.sinkX = L.lonToX(E.walker(s).sinkE) + 16 * u;
+    return g;
+  }
+  // 다윈·타히티 기압 편차(모형, 실측 합성으로 맞춘 hPa)와 남방진동 지수 표시(지구과학 PART D)
+  // 두 곳은 적도에서 조금 남쪽(다윈 12°S, 타히티 18°S)이라 그 경도의 하늘에 깃발처럼 세운다
+  function drawPressure(c, withSoi) {
+    var pr = E.pressure(s), fs = fsz(1.5), t = D.theme(), out = {};
+    var skyH = L.ySL - L.padT, y = L.padT + skyH * 0.52;
+    [['darwin', '다윈', 131, pr.darwin], ['tahiti', '타히티', 210, pr.tahiti]].forEach(function (q) {
+      var v = q[3], hi = v > 0.3, lo = v < -0.3;
+      var txt = q[1] + ' ' + (hi ? '▲ 높음' : lo ? '▼ 낮음' : '– 평소') + (hi || lo ? ' ' + (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1) + ' hPa' : '');
+      var x0 = L.lonToX(q[2]);
+      c.save(); c.font = D.font(fs, 700);
+      var w = c.measureText(txt).width + fs * 1.2, h = fs * 1.9;
+      c.restore();
+      var x = clamp(x0 - w / 2, L.padL + 4, W - w - 4);
+      c.save();
+      c.strokeStyle = t.ink; c.lineWidth = 1.4; c.globalAlpha = 0.8;
+      c.beginPath(); c.moveTo(x0, y + h / 2); c.lineTo(x0, L.ySL - 2); c.stroke();
+      c.fillStyle = t.ink; c.beginPath(); c.arc(x0, L.ySL - 2, 3, 0, Math.PI * 2); c.fill();
+      c.restore();
+      D.pill(c, txt, x, y, { size: fs, align: 'left', bg: hi ? '#0f1d26' : lo ? '#ffffff' : 'rgba(255,255,255,0.85)', fg: hi ? '#ffffff' : '#0f1d26', border: '#0f1d26' });
+      out[q[0]] = box(x - 4, y - h / 2 - 4, x + w + 4, L.ySL + 2);
+    });
+    if (withSoi) {
+      var si = E.soi(s), txt2 = '남방진동 지수(모형) ' + (si > 0.05 ? '+' : si < -0.05 ? '−' : '') + Math.abs(si).toFixed(1);
+      var ys = L.zToY(205);   // 깊은 바다 쪽 빈 곳(하늘에는 캐릭터·구름이 많음)
+      c.save(); c.font = D.font(fs + 1, 800);
+      var w2 = c.measureText(txt2).width + (fs + 1) * 1.2;
+      c.restore();
+      D.pill(c, txt2, W / 2, ys, { size: fs + 1, bg: si > 0.05 ? t.nina : si < -0.05 ? t.nino : t.normal, fg: t.onPhase });
+      out.soi = box(W / 2 - w2 / 2 - 6, ys - fs * 1.4, W / 2 + w2 / 2 + 6, ys + fs * 1.4);
+    }
+    return out;
+  }
+
   function drawSpot(c, keys) {
     var R = [];
     keys.forEach(function (k) { if (REG[k]) R = R.concat(REG[k]()); });
@@ -274,11 +341,17 @@
     if (k === 'wind') return [L.lonToX(232), L.padT + skyH * 0.2];
     if (k === 'west') return [L.lonToX(143), L.zToY(30)];
     if (k === 'east') return [L.lonToX(240), L.zToY(62)];
-    if (k === 'cloud') { var g = geoAir(); return [Math.min(W - avSize * 0.6, g.cx + g.r * 1.2 + avSize * 0.45), g.cy - g.r * 0.5]; }
+    if (k === 'cloud') {
+      if (st.show.walker) {
+        var u = clamp(W / 560, 0.55, 1.1), cr = (15 + 13 * E.walker(s).convection) * u, yT = L.ySL - 6 - 0.84 * (L.ySL - L.padT - 10);
+        return [Math.min(W - avSize * 0.6, L.lonToX(E.walker(s).rise) + cr * 1.15 + avSize * 0.45), yT + cr * 0.2];
+      }
+      var g = geoAir(); return [Math.min(W - avSize * 0.6, g.cx + g.r * 1.2 + avSize * 0.45), g.cy - g.r * 0.5];
+    }
     return [Math.min(W - avSize * 0.55, L.ox1 + L.landE * 0.42 + 2), L.surfY(E.LON_E, s) - avSize * 0.62];   // 어부: 남아메리카 해안
   }
   function placeCast() {
-    var key = [W, H, s.toFixed(3), Object.keys(st.cast).join(','), st.who, st.mood].join('|');
+    var key = [W, H, s.toFixed(3), Object.keys(st.cast).join(','), st.who, st.mood, !!st.show.walker].join('|');
     if (key === castKey) return;
     castKey = key;
     Object.keys(actors).forEach(function (k) {
@@ -303,15 +376,20 @@
   /* ── 그리기 ─────────────────────────── */
   function draw(dt) {
     var sh = st.show;
-    var key = [s.toFixed(3), W, H, Object.keys(sh).sort().join(','), themeTick].join('|');
+    var key = [s.toFixed(3), W, H, Object.keys(sh).sort().join(','), subj, themeTick].join('|');
     if (key !== baseKey) { buildBase(sh); baseKey = key; }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(base, 0, 0, W, H);
     if (motion && (sh.flow || sh.up)) { D.updateFlow(flow, s, dt); drawParticles(ctx, sh); }
     if (sh.fish) D.drawFishery(ctx, L, s, time);
-    if (sh.air) drawAir(ctx);
-    if (sh.wind) D.drawTradeWind(ctx, L, s, windP, dt, { labels: false });   // 이름은 그림 위 무역풍 캐릭터가 보여 줌
+    wkGeo = null; prGeo = null;
+    if (sh.walker) wkGeo = drawWalkerLoop(ctx);   // 고리의 아래쪽이 무역풍이므로 무역풍 화살표·간단한 구름은 그리지 않음
+    else {
+      if (sh.air) drawAir(ctx);
+      if (sh.wind) D.drawTradeWind(ctx, L, s, windP, dt, { labels: false });   // 이름은 그림 위 무역풍 캐릭터가 보여 줌
+    }
+    if (sh.pressure) prGeo = drawPressure(ctx, sh.soi);
     if (st.hl.length) drawSpot(ctx, st.hl);
     placeCast();
   }
@@ -349,15 +427,39 @@
   }
 
   /* ── 대화 ───────────────────────────── */
-  var dots = $('dots');
-  STEPS.forEach(function (step, i) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.setAttribute('aria-label', 'STEP ' + i + ': ' + step.title);
-    b.title = 'STEP ' + i + ': ' + step.title;
-    b.addEventListener('click', function () { go(i, 0); });
-    dots.appendChild(b);
-  });
+  // 단계 바로 가기 점: 지구과학은 지금 PART 의 단계만, 통합과학은 모든 단계
+  var dots = $('dots'), partsEl = $('parts');
+  function partOf(i) { return STEPS[i].part; }
+  function buildNav() {
+    dots.innerHTML = '';
+    STEPS.forEach(function (step, i) {
+      if (subj === 'earth' && step.part !== partOf(cur)) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-i', i);
+      b.setAttribute('aria-label', step.title);
+      b.title = step.title;
+      b.addEventListener('click', function () { go(i, 0); });
+      dots.appendChild(b);
+    });
+    partsEl.hidden = subj !== 'earth';
+    if (subj !== 'earth') return;
+    partsEl.innerHTML = '';
+    Object.keys(S.PARTS).forEach(function (p) {
+      var first = -1;
+      STEPS.forEach(function (x, i) { if (first < 0 && x.part === p) first = i; });
+      if (first < 0) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'part' + (p === partOf(cur) ? ' cur' : '');
+      if (p === partOf(cur)) b.setAttribute('aria-current', 'step');
+      b.innerHTML = '<b>' + p + '</b><span></span>';
+      b.lastChild.textContent = S.PARTS[p];
+      b.addEventListener('click', function () { go(first, 0); });
+      partsEl.appendChild(b);
+    });
+  }
+  var navKey = '';
 
   function askEl(a, got) {
     var wrap = document.createElement('div');
@@ -370,7 +472,7 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'ch' + (got ? (o === a.ans ? ' right' : o === got ? ' wrong' : '') : '');
-      b.textContent = S.CHOICE[o];
+      b.textContent = (a.words || S.CHOICE)[o];
       b.setAttribute('data-o', o);
       b.disabled = !!got;
       row.appendChild(b);
@@ -379,7 +481,7 @@
     if (got) {
       var fb = document.createElement('div');
       fb.className = 'fb ' + (got === a.ans ? 'ok' : 'no');
-      fb.textContent = got === a.ans ? '맞아요! 그림에서 바뀐 모습을 확인해 보세요.' : '아쉬워요. 실제로는 ' + S.RESULT[a.ans] + ' 그림에서 확인해 보세요.';
+      fb.textContent = got === a.ans ? '맞아요! 그림에서 바뀐 모습을 확인해 보세요.' : '아쉬워요. 실제로는 ' + (a.result || S.RESULT)[a.ans] + ' 그림에서 확인해 보세요.';
       wrap.appendChild(fb);
     }
     return wrap;
@@ -389,8 +491,12 @@
     var step = STEPS[cur], ln = step.lines[li];
     var lastLine = li === step.lines.length - 1, lastStep = cur === STEPS.length - 1;
     st = stateAt(cur, li);
-    $('stepNo').textContent = 'STEP ' + cur + ' / ' + (STEPS.length - 1);
-    $('stepDare').hidden = !step.dare;
+    var nk = subj + '|' + (subj === 'earth' ? partOf(cur) : '');
+    if (nk !== navKey) { navKey = nk; buildNav(); }
+    var inPart = STEPS.map(function (x, i) { return i; }).filter(function (i) { return subj !== 'earth' || partOf(i) === partOf(cur); });
+    var pos = inPart.indexOf(cur), lastInPart = pos === inPart.length - 1;
+    $('stepNo').textContent = subj === 'earth' ? 'PART ' + partOf(cur) + ' · ' + (pos + 1) + ' / ' + inPart.length : 'STEP ' + cur + ' / ' + (STEPS.length - 1);
+    $('stepDare').hidden = true;
     $('stepTitle').textContent = step.title;
     var av = $('sayAv');
     av.className = 'av ' + ln.who;
@@ -401,7 +507,7 @@
     $('sayText').textContent = ln.t;
 
     note.innerHTML = '';
-    var got = ln.ask ? answers[cur + '-' + li] : null;
+    var got = ln.ask ? answers[step.id + '-' + li] : null;
     if (ln.ask) note.appendChild(askEl(ln.ask, got));
     if (ln.key) {
       var k = document.createElement('div');
@@ -418,9 +524,11 @@
     var next = $('next');
     $('prev').disabled = cur === 0 && li === 0;
     next.disabled = !!(ln.ask && !got);
-    next.textContent = next.disabled ? '먼저 예측해 보세요' : lastStep && lastLine ? S.END_LABEL : lastLine ? '다음 단계 ▶' : '다음 대화 ▶';
-    Array.prototype.forEach.call(dots.children, function (b, i) {
-      b.className = (i < cur ? 'done' : i === cur ? 'cur' : '') + (STEPS[i].dare ? ' dare' : '');
+    next.textContent = next.disabled ? '먼저 예측해 보세요' : lastStep && lastLine ? S.END[subj].label
+      : lastLine && subj === 'earth' && lastInPart ? '다음: ' + S.PARTS[partOf(cur + 1)] + ' ▶' : lastLine ? '다음 단계 ▶' : '다음 대화 ▶';
+    Array.prototype.forEach.call(dots.children, function (b) {
+      var i = +b.getAttribute('data-i');
+      b.className = i < cur ? 'done' : i === cur ? 'cur' : '';
       if (i === cur) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
     });
 
@@ -445,7 +553,7 @@
     if ($('next').disabled) return;
     if (li < STEPS[cur].lines.length - 1) go(cur, li + 1);
     else if (cur < STEPS.length - 1) go(cur + 1, 0);
-    else location.href = S.END_URL;
+    else { var e = S.END[subj]; location.href = (LAB ? LAB.url(e.learn, subj) : '../observatory/') + e.hash; }
   }
   // 이전: 바로 앞 대사 → 단계의 첫 대사에서는 이전 단계의 마지막 대사로
   function prevLine() {
@@ -459,7 +567,7 @@
   note.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('.ch');
     if (!b || b.disabled) return;
-    answers[cur + '-' + li] = b.getAttribute('data-o');
+    answers[STEPS[cur].id + '-' + li] = b.getAttribute('data-o');
     render();
     $('next').focus();   // 고른 단추는 다시 그려지므로 '다음'으로 초점을 옮김
   });
@@ -495,6 +603,20 @@
     new MutationObserver(themeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(themeChanged);
+
+  // 과목을 바꾸면 그 과목의 대본으로: 같은 단계가 있으면 그 자리, 없으면 앞쪽에서 가장 가까운 단계로 (예측 답은 그대로)
+  if (LAB) LAB.onChange(function () {
+    var id = STEPS[cur].id, line = li;
+    subj = subjectNow(); STEPS = S.stepsFor(subj); navKey = '';
+    var ids = STEPS.map(function (x) { return x.id; }), at = ids.indexOf(id);
+    if (at < 0) {
+      line = 0;
+      for (var k = S.ORDER.indexOf(id); k >= 0 && at < 0; k--) at = ids.indexOf(S.ORDER[k]);
+      if (at < 0) at = 0;
+    }
+    baseKey = ''; castKey = '';
+    go(at, line);
+  });
 
   if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
   window.addEventListener('resize', resize);
