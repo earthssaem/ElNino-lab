@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>엘니뇨·라니냐 탐구실</title>
-<meta name="description" content="통합과학·지구과학 과목에 맞춰 대화형 학습, 개념 시뮬레이션, 실측자료 탐구로 엘니뇨·라니냐와 대기·해양의 상호 작용을 배우는 탐구실">
+<meta name="description" content="통합과학2·지구과학 과목에 맞춰 대화형 학습, 개념 시뮬레이션, 실측자료 탐구로 엘니뇨·라니냐와 대기·해양의 상호 작용을 배우는 탐구실">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='1' y='1' width='38' height='38' rx='10' fill='%233279bc'/%3E%3Cg fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 15H18l3-3M18 15l3 3' stroke-width='2.2'/%3E%3Cpath d='M5 24C10 20 15 20 20 23S30 27 35 22' stroke-width='2.4'/%3E%3Cpath d='M5 30C12 28 22 29 35 26' stroke-width='1.6' opacity='.6'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,123 +42,40 @@
   </header>
 
   <main>
-    <!-- 과목 선택 -->
+    <!-- 과목 선택: 과목명이 먼저 보이도록 글 중심 카드 (과목 식별자 integrated·earth 는 그대로) -->
     <section id="pick" aria-labelledby="pick-q" hidden>
       <h2 class="hub-q" id="pick-q">어떤 과목을 공부하고 있나요?</h2>
       <p class="hub-sub">학습 중인 과목을 선택하고 탐구를 시작해 보세요.</p>
       <div class="subj-cards">
         <a class="subj-card" href="?subject=integrated" data-s="integrated">
-          <span class="now-tag">지금 과목</span>
-          <!-- 통합과학 그림: 엘니뇨 때 바다 표면과 생활 — 약해진(거꾸로 불지 않는) 무역풍, 동쪽으로 퍼진 따뜻한 바닷물, 동쪽으로 옮겨 간 비구름, 어선 -->
-          <div class="illu">
-            <svg viewBox="0 0 320 180" aria-hidden="true" focusable="false">
-              <defs>
-                <linearGradient id="ia-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D7E9F7"/><stop offset="1" stop-color="#F4F9FD"/></linearGradient>
-                <linearGradient id="ia-sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FB3DC"/><stop offset=".45" stop-color="#3F86C6"/><stop offset="1" stop-color="#21558F"/></linearGradient>
-                <linearGradient id="ia-warm" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E96A45"/><stop offset=".55" stop-color="#EE8058"/><stop offset="1" stop-color="#F3A47E"/></linearGradient>
-              </defs>
-              <rect width="320" height="80" fill="url(#ia-sky)"/>
-              <rect y="78" width="320" height="102" fill="url(#ia-sea)"/>
-              <!-- 따뜻한 바닷물: 동쪽 끝까지 퍼짐 -->
-              <path d="M18 78 H300 V90 C240 92 120 96 18 100 Z" fill="url(#ia-warm)"/>
-              <text x="212" y="88.5" font-size="9.5" fill="#6B2410" text-anchor="middle">따뜻한 바닷물</text>
-              <!-- 평상시 따뜻한 물의 경계(서쪽에 쌓여 있던 곳) -->
-              <path d="M18 112 C80 110 130 100 168 79" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="4 3" opacity=".9"/>
-              <text x="24" y="124" font-size="9" fill="#fff">평상시 따뜻한 물</text>
-              <line x1="18" y1="78" x2="300" y2="78" stroke="#fff" stroke-width="1" opacity=".7"/>
-              <!-- 땅 -->
-              <path d="M0 68 Q10 64 22 70 V180 H0 Z" fill="#7E9F6A"/>
-              <path d="M298 66 L305 56 L311 61 L320 50 V180 H298 Z" fill="#C9AD82"/>
-              <!-- 비구름: 서쪽(평상시, 점선) → 동쪽으로 옮겨 감 -->
-              <g fill="none" stroke="#81B6DD" stroke-width="1.4" stroke-dasharray="3 3">
-                <path d="M52 40 H88 A8 8 0 0 0 86 25 A11 11 0 0 0 66 21 A9 9 0 0 0 52 28 A6 6 0 0 0 52 40 Z"/>
-              </g>
-              <path d="M96 28 Q130 14 160 26" fill="none" stroke="#3279BC" stroke-width="1.6" stroke-dasharray="4 3"/>
-              <path d="M154 21 L162 27 L153 30" fill="none" stroke="#3279BC" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <text x="128" y="12" font-size="9.5" fill="#163F70" text-anchor="middle">비구름이 동쪽으로</text>
-              <path d="M168 42 H206 A9 9 0 0 0 204 25 A13 13 0 0 0 180 21 A10 10 0 0 0 166 30 A6 6 0 0 0 168 42 Z" fill="#fff" stroke="#81B6DD" stroke-width="1.2"/>
-              <g stroke="#3279BC" stroke-width="1.6" stroke-linecap="round">
-                <line x1="174" y1="48" x2="171" y2="58"/><line x1="183" y1="48" x2="180" y2="62"/><line x1="192" y1="48" x2="189" y2="58"/><line x1="201" y1="48" x2="198" y2="62"/>
-              </g>
-              <!-- 무역풍: 여전히 동쪽 → 서쪽이지만 약해짐(짧은 화살표) -->
-              <g fill="none" stroke="#3279BC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M150 66 H124 M130 61 L124 66 L130 71"/>
-                <path d="M264 60 H238 M244 55 L238 60 L244 65"/>
-              </g>
-              <text x="251" y="49" font-size="9.5" fill="#163F70" text-anchor="middle">무역풍 약해짐</text>
-              <!-- 어선과 물고기 -->
-              <path d="M270 76 V62" stroke="#163F70" stroke-width="1.4"/>
-              <path d="M271.5 63 L271.5 74 L281 74 Z" fill="#fff" stroke="#163F70" stroke-width="1"/>
-              <path d="M256 75 H286 L281 82 H261 Z" fill="#163F70"/>
-              <path d="M262 82 L254 104" stroke="#fff" stroke-width="1" stroke-dasharray="2 2" opacity=".85"/>
-              <g fill="#F4F9FD" opacity=".85"><ellipse cx="248" cy="112" rx="7" ry="3.2"/><path d="M254 112 L260 108 V116 Z"/></g>
-              <text x="40" y="171" font-size="10" fill="#fff">서태평양</text>
-              <text x="290" y="171" font-size="10" fill="#fff" text-anchor="end">동태평양</text>
-            </svg>
-          </div>
-          <div class="card-body">
-            <h3>통합과학</h3>
+          <div class="card-head">
+            <h3>통합과학2</h3>
             <p class="card-sub">엘니뇨와 지구 환경 변화</p>
-            <p class="card-q" id="int-q">무역풍이 약해지면 지구 환경과 우리 생활에는 어떤 변화가 나타날까요?</p>
-            <ul class="kw" aria-label="핵심 키워드"><li>무역풍</li><li>엘니뇨</li><li>인간 생활</li></ul>
-            <span class="start" aria-hidden="true">탐구 시작 <span>→</span></span>
+            <span class="now-tag">지금 과목</span>
           </div>
+          <p class="card-intro">엘니뇨가 발생하는 원리와 지구 환경 및 인간 생활에 미치는 영향을 알아봅니다.</p>
+          <ul class="learn" aria-label="주요 학습 내용">
+            <li>무역풍 약화와 표층 해수의 이동</li>
+            <li>해수면 온도와 용승의 변화</li>
+            <li>강수 지역과 기후의 변화</li>
+            <li>엘니뇨가 인간 생활에 미치는 영향</li>
+          </ul>
+          <span class="start">통합과학2 탐구 시작 <span aria-hidden="true">→</span></span>
         </a>
         <a class="subj-card" href="?subject=earth" data-s="earth">
-          <span class="now-tag">지금 과목</span>
-          <!-- 지구과학 그림: 해양 내부와 대기 — 서쪽 깊고 동쪽 얕은 수온약층, 20 ℃ 등온선(평상시 실선·엘니뇨 점선), 용승, 워커 순환, 동서 기압 -->
-          <div class="illu">
-            <svg viewBox="0 0 320 180" aria-hidden="true" focusable="false">
-              <defs>
-                <linearGradient id="ie-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D7E9F7"/><stop offset="1" stop-color="#F4F9FD"/></linearGradient>
-                <linearGradient id="ie-sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FB3DC"/><stop offset=".45" stop-color="#3F86C6"/><stop offset="1" stop-color="#21558F"/></linearGradient>
-                <linearGradient id="ie-warm" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E96A45"/><stop offset=".55" stop-color="#EE8058"/><stop offset="1" stop-color="#F3A47E"/></linearGradient>
-              </defs>
-              <rect width="320" height="80" fill="url(#ie-sky)"/>
-              <rect y="78" width="320" height="102" fill="url(#ie-sea)"/>
-              <!-- 평상시: 따뜻한 해수층이 서쪽에 두껍고 동쪽에 얇음 -->
-              <path d="M18 78 H300 V83 C250 86 170 106 18 124 Z" fill="url(#ie-warm)"/>
-              <text x="60" y="100" font-size="10" fill="#6B2410" text-anchor="middle">따뜻한 해수층</text>
-              <!-- 수온약층(띠)과 그 대표 지표인 20 ℃ 등온선 -->
-              <path d="M18 124 C170 106 250 86 300 83 V95 C250 98 170 122 18 142 Z" fill="#fff" opacity=".25"/>
-              <path d="M18 133 C170 114 250 92 300 89" fill="none" stroke="#fff" stroke-width="4.6" opacity=".7"/>
-              <path d="M18 133 C170 114 250 92 300 89" fill="none" stroke="#163F70" stroke-width="2.6"/>
-              <path d="M18 116 C140 113 230 104 300 100" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="5 3"/>
-              <text x="104" y="141" font-size="9.5" fill="#fff">20 ℃ 등온선 · 평상시</text>
-              <text x="282" y="113" font-size="9.5" fill="#fff" text-anchor="end">엘니뇨 때</text>
-              <text x="165" y="160" font-size="10" fill="#fff" text-anchor="middle" opacity=".9">차가운 심층</text>
-              <!-- 동쪽 용승 -->
-              <path d="M290 122 V88 M285 94 L290 87 L295 94" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <line x1="18" y1="78" x2="300" y2="78" stroke="#fff" stroke-width="1" opacity=".7"/>
-              <!-- 땅 -->
-              <path d="M0 68 Q10 64 22 70 V180 H0 Z" fill="#7E9F6A"/>
-              <path d="M298 66 L305 56 L311 61 L320 50 V180 H298 Z" fill="#C9AD82"/>
-              <!-- 워커 순환: 서쪽 상승 → 상층 동쪽 → 동쪽 하강 → 지표 서쪽(무역풍) -->
-              <path d="M70 16 H260 Q272 16 272 28 V58 Q272 70 260 70 H70 Q58 70 58 58 V28 Q58 16 70 16 Z" fill="none" stroke="#3279BC" stroke-width="2"/>
-              <g fill="none" stroke="#3279BC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M163 11 L171 16 L163 21"/>
-                <path d="M267 38 L272 46 L277 38"/>
-                <path d="M172 65 L164 70 L172 75"/>
-                <path d="M53 48 L58 40 L63 48"/>
-              </g>
-              <path d="M40 36 H76 A8 8 0 0 0 74 21 A11 11 0 0 0 54 17 A9 9 0 0 0 40 24 A6 6 0 0 0 40 36 Z" fill="#fff" stroke="#81B6DD" stroke-width="1.2"/>
-              <circle cx="290" cy="26" r="7" fill="#F6C453"/>
-              <text x="165" y="47" font-size="11" fill="#163F70" text-anchor="middle">워커 순환</text>
-              <g font-size="9" text-anchor="middle">
-                <circle cx="38" cy="58" r="8" fill="#fff" stroke="#3279BC" stroke-width="1.4"/><text x="38" y="61.5" fill="#163F70">저</text>
-                <circle cx="287" cy="58" r="8" fill="#fff" stroke="#3279BC" stroke-width="1.4"/><text x="287" y="61.5" fill="#163F70">고</text>
-              </g>
-              <text x="28" y="171" font-size="10" fill="#fff">서태평양</text>
-              <text x="292" y="171" font-size="10" fill="#fff" text-anchor="end">동태평양</text>
-            </svg>
-          </div>
-          <div class="card-body">
+          <div class="card-head">
             <h3>지구과학</h3>
             <p class="card-sub">엘니뇨·라니냐와 해양·대기의 상호 작용</p>
-            <p class="card-q" id="earth-q">바다의 수온 구조와 대기 순환은 어떻게 연결되어 있을까요?</p>
-            <ul class="kw" aria-label="핵심 키워드"><li>수온약층</li><li>워커 순환</li><li>남방진동</li></ul>
-            <span class="start" aria-hidden="true">탐구 시작 <span>→</span></span>
+            <span class="now-tag">지금 과목</span>
           </div>
+          <p class="card-intro">엘니뇨와 라니냐의 발생 원리를 해양과 대기의 상호 작용으로 이해합니다.</p>
+          <ul class="learn" aria-label="주요 학습 내용">
+            <li>무역풍과 엘니뇨·라니냐의 발생</li>
+            <li>수온약층의 깊이와 용승 변화</li>
+            <li>워커 순환과 대기 순환 변화</li>
+            <li>남방진동과 동서태평양 기압 변화</li>
+          </ul>
+          <span class="start">지구과학 탐구 시작 <span aria-hidden="true">→</span></span>
         </a>
       </div>
       <p class="hub-note">고른 과목은 이 기기에만 저장되며 언제든 바꿀 수 있어요.</p>
