@@ -169,8 +169,10 @@
       band = D.drawThermocline(b, L, s, { mode: 'temp', thin: true });
       if (opts.iso) D.drawIsotherms(b, L, s, { mode: 'temp', labels: true, skip20: true });
     }
-    if (opts.ghost) D.drawGhost(b, L, s, { mode: 'temp' });
-    D.drawIso20(b, L, s, { label: '20 ℃', labelLon: 226 });
+    if (subj === 'earth') {   // 20 ℃ 등온선(굵은 실선)·평상시 20 ℃(점선)는 지구과학만. 통합과학은 수온 색으로만 보여 줌
+      if (opts.ghost) D.drawGhost(b, L, s, { mode: 'temp' });
+      D.drawIso20(b, L, s, { label: '20 ℃', labelLon: 226 });
+    }
     D.drawLand(b, L, s, { names: true });
     D.drawAxes(b, L);
     D.drawFlowGlyphs(b, L, s, { labels: true });
