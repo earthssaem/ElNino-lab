@@ -123,7 +123,7 @@
       for (var lon = E.LON_W; lon <= E.LON_E; lon += 5) { var y = L.surfY(lon, s); lo = Math.min(lo, y); hi = Math.max(hi, y); }
       return [box(L.ox0 - 4, lo - fsz() * 1.7 - 4, L.ox1 + 4, hi + 12)];
     },
-    // 수온약층 띠(지구과학)와 20 ℃ 선(두 과목)을 모두 감싸도록
+    // 수온약층 띠·20 ℃ 선(지구과학), 따뜻한 해수층(통합과학)을 감싸도록
     thermo: function () {
       var top = Math.min(E.mixedLayer(135, s), E.mixedLayer(279, s)), bot = Math.max(E.iso20(140, s), E.iso20(160, s), E.iso20(279, s));
       return [box(L.ox0 - 4, L.zToY(top) - 10, L.ox1 + 4, L.zToY(bot) + 14)];
@@ -163,8 +163,7 @@
         D.drawThermocline(b, L, s, { mode: 'temp', thin: true });
         D.drawIso20(b, L, s, { label: '20 ℃', labelLon: 205 });
         D.text(b, '수온약층', L.lonToX(200), (L.zToY(c.M) + L.zToY(c.D15)) / 2, { size: fs, weight: 700, color: '#0f1d26', haloColor: 'rgba(255,255,255,0.8)' });
-      } else {                  // 통합과학: 따뜻한 해수층과 그 아래 경계(진한 선)
-        D.drawIso20(b, L, s, {});
+      } else {                  // 통합과학: 선 없이 수온 색과 '따뜻한 해수층' 이름만
         var cw = E.column(165, s);
         D.text(b, '따뜻한 해수층', L.lonToX(165), (L.surfY(165, s) + L.zToY(cw.D)) / 2 + 6, { size: fs, weight: 800, color: '#3a0a06', haloColor: 'rgba(255,235,220,0.85)' });
       }
