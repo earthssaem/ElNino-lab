@@ -12,7 +12,7 @@
 - [x] **4단계 — 실측자료 탐구** (통합과학 간단 모드: 엘니뇨 사례·지도 중심 / 지구과학: 전체 기능 유지)
 - [x] **5단계 — 통합 점검** (과목별 학습 흐름, 이동·설정 유지, 링크 호환, 화면 크기, 과학적 정확성, 회귀 테스트, 수정 전후 스크린샷)
 
-(1~4단계 뒤에 첫 화면 과목 선택 디자인을 Pacific Blue 색과 그림 카드로 바꿈: `css/hub.css`)
+(1~4단계 뒤에 첫 화면 과목 선택 디자인을 Pacific Blue 색으로 바꿈: `css/hub.css`. 그 뒤 그림을 빼고 과목명·학습 내용 중심 카드로 정리했고, 화면 과목명을 '통합과학2'로 고침 — 식별자 `integrated`는 그대로)
 
 ## 1단계에서 만든 구조
 
@@ -23,7 +23,7 @@
 /observatory/      실측자료 탐구
 js/lab.js          공통 과목 상태(window.LAB)와 학습 페이지 맨 위 탐구실 막대
 css/lab.css        탐구실 막대(자체 색 토큰 --lab-*)
-css/hub.css        첫 화면 디자인(Pacific Blue 색 토큰을 body.hub-page 안에서만, 그림 있는 과목 카드)
+css/hub.css        첫 화면 디자인(Pacific Blue 색 토큰을 body.hub-page 안에서만, 글 중심 과목 카드)
 ```
 
 - **과목 상태**: `?subject=integrated|earth`가 주소에 있으면 우선하고 저장, 없으면 localStorage `enso-lab-subject`.

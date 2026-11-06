@@ -10,7 +10,7 @@
   'use strict';
   var KEY = 'enso-lab-subject';
   var SUBJECTS = {
-    integrated: { id: 'integrated', name: '통합과학' },
+    integrated: { id: 'integrated', name: '통합과학2' },   // 화면에 보이는 과목명(식별자·저장 값은 integrated 그대로)
     earth: { id: 'earth', name: '지구과학' }
   };
   var METHODS = [
