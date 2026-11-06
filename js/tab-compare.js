@@ -1,5 +1,5 @@
 /* ② 세 상태 비교: 평상시 · 엘니뇨 · 라니냐를 나란히 (통합과학은 평상시 · 엘니뇨 두 그림, M.subject)
- * 세 그림은 같은 색 범위·같은 수심 축(0~300 m)을 쓰고, 20 ℃ 등온선을 굵은 실선, 평상시 20 ℃ 를 점선으로 그린다. */
+ * 세 그림은 같은 색 범위·같은 수심 축(0~300 m)을 쓰고, 20 ℃ 등온선을 굵은 실선, 평상시 20 ℃ 를 점선으로 그린다(지구과학만, 통합과학은 선 없이 수온 색으로). */
 (function () {
   'use strict';
   var E = window.ENSO, D = window.ENSODraw;
@@ -103,8 +103,10 @@
     D.drawOcean(b, L, s, opts.mode);
     if (subj === 'earth') D.drawThermocline(b, L, s, { mode: opts.mode, thin: true });
     if (opts.iso && subj === 'earth') D.drawIsotherms(b, L, s, { mode: opts.mode, labels: L.w > 300, skip20: true });
-    if (!E.near0(s)) D.drawGhost(b, L, s, { mode: opts.mode });
-    D.drawIso20(b, L, s, { mode: opts.mode, label: L.w > 300 ? '20 ℃' : '', labelLon: 226 });
+    if (subj === 'earth') {   // 20 ℃ 선은 지구과학만
+      if (!E.near0(s)) D.drawGhost(b, L, s, { mode: opts.mode });
+      D.drawIso20(b, L, s, { mode: opts.mode, label: L.w > 300 ? '20 ℃' : '', labelLon: 226 });
+    }
     D.drawLand(b, L, s, {});
     if (opts.flow) D.drawFlowGlyphs(b, L, s, { labels: false });
     // 서 · 동

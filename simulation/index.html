@@ -88,15 +88,15 @@
               <div class="cbar-ticks" id="wind-cbar-ticks"></div>
             </div>
             <ul class="keys">
-              <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M1 5 H25" stroke="#0b1a33" stroke-width="2.6" stroke-linecap="round"/></svg><span class="only-earth">20 ℃ 등온선</span><span class="only-int">따뜻한 물의 아래 경계(20 ℃)</span></li>
-              <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--ink)" stroke-width="1.8" stroke-dasharray="5 4"/></svg><span class="only-earth">평상시 20 ℃</span><span class="only-int">평상시</span></li>
+              <li class="only-earth"><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M1 5 H25" stroke="#0b1a33" stroke-width="2.6" stroke-linecap="round"/></svg>20 ℃ 등온선</li>
+              <li class="only-earth"><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--ink)" stroke-width="1.8" stroke-dasharray="5 4"/></svg>평상시 20 ℃</li>
               <li class="only-earth"><svg viewBox="0 0 26 10" aria-hidden="true"><rect x="1" y="1" width="24" height="8" rx="2" fill="#9fb3c4" opacity=".55"/><path d="M1 1.5 H25" stroke="#fff" stroke-width="1.3"/></svg>수온 약층</li>
               <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M25 5 H6 M9 1.5 L4 5 L9 8.5" style="stroke:var(--ink-2)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>표층 해수</li>
               <li><svg viewBox="0 0 16 14" aria-hidden="true"><path d="M8 13 V3 M4 6.5 L8 2 L12 6.5" stroke="#2a8fb8" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>용승</li>
             </ul>
             <div class="toggles" role="group" aria-label="보기 설정">
               <label class="chk only-earth"><input type="checkbox" id="wind-iso"><span>모든 등온선</span></label>
-              <label class="chk"><input type="checkbox" id="wind-ghost" checked><span>평상시 선</span></label>
+              <label class="chk only-earth"><input type="checkbox" id="wind-ghost" checked><span>평상시 선</span></label>
               <label class="chk"><input type="checkbox" id="wind-motion" checked><span>움직임</span></label>
             </div>
           </div>
