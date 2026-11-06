@@ -43,7 +43,10 @@
     $('cmp-mode-temp').addEventListener('click', function () { setMode('temp'); });
     $('cmp-mode-anom').addEventListener('click', function () { setMode('anom'); });
     [['cmp-walker', 'walker'], ['cmp-flow', 'flow'], ['cmp-iso', 'iso'], ['cmp-motion', 'motion']].forEach(function (q) {
-      $(q[0]).addEventListener('change', function (e) { opts[q[1]] = e.target.checked; dirty = true; });
+      $(q[0]).addEventListener('change', function (e) {
+        opts[q[1]] = e.target.checked; dirty = true;
+        if (q[1] === 'walker') $('cmp-walker-note').hidden = !e.target.checked;   // 모식도 안내(실제 바람과 구분)
+      });
     });
     legend();
   };
@@ -131,7 +134,7 @@
     if (opts.walker) {
       D.drawWalker(ctx, function (lon, a) {
         return [L.lonToX(lon), L.ySL - 6 - a * (L.ySL - L.padT - 10)];
-      }, s, time, { u: clamp(L.w / 520, 0.55, 1.1), motion: opts.motion });
+      }, s, time, { u: clamp(L.w / 520, 0.55, 1.1), motion: opts.motion, simple: subj === 'integrated' });
     } else {
       D.drawTradeWind(ctx, L, s, p.wind, opts.motion ? dt : 0, { labels: false });
     }
