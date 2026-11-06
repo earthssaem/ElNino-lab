@@ -141,6 +141,16 @@
     ctx.restore();
   };
 
+  // 아래쪽을 가리키는 굵은 화살표 (y0 → y1, y1 > y0)
+  D.downArrow = function (ctx, x, y0, y1, thick, fill, edge) {
+    if (y1 - y0 < 10) return;
+    ctx.save();
+    ctx.translate(x, y0);
+    ctx.rotate(Math.PI / 2);
+    D.blockArrow(ctx, 0, y1 - y0, 0, thick, fill, edge);
+    ctx.restore();
+  };
+
   // 선 끝 화살촉
   function arrowHead(ctx, x, y, ang, size, fill) {
     ctx.save();
@@ -738,54 +748,92 @@
     return [pts[0][0], pts[0][1], 0];
   }
 
+  /* 대기 순환 모식도 (② 비교·③ 지도·대화형 PART C 공통)
+     - 상승 기류(구름·비)의 위치와 세기: GPCP 실측 강수에서 정한 E.walker(s).rise·convection (유지)
+     - 하강 위치(sinkE·sinkW)와 고리 굵기: 대표적인 순환을 보여 주는 개념값. 실제로 잰 하강 위치·순환 세기가 아니다.
+     - 고리의 화살표는 실제 관측 바람이 아니다(실제 지표 바람은 E.windAt 을 쓰는 drawTradeWind). 그래서 고리를 켜면 무역풍 화살표는 그리지 않는다.
+     - 엘니뇨 때 서쪽 고리는 평상시와 비교한 변화(서태평양 상승 운동 약화·하강 운동 강화 경향)를 뜻하므로 가는 점선으로 그린다.
+       실측 합성에서 이곳의 바다 가까이 바람은 엘니뇨 때도 약한 동풍이다.
+     - 서태평양의 비가 줄어드는 것은 '맑음'이 아니라 평상시 구름 자리의 흐린 구름으로 나타낸다(실측: 비 약 35 % 감소, 여전히 월 90~140 mm).
+     - 동태평양 하강 쪽의 해(맑음)는 엘니뇨에 가까울수록 흐려진다(실측: 엘니뇨 때 98°W 강수 약 2배).
+     - o.simple: 고리 없이 공기의 오르내림 화살표만(통합과학) */
   D.drawWalker = function (ctx, P, s, time, o) {
     var t = D.theme();
-    var wk = E.walker(s), u = o.u;
+    var wk = E.walker(s), w0 = E.walker(0), u = o.u;
     var yB = P(180, 0.1)[1], yT = P(180, 0.84)[1];
     var xR = P(wk.rise, 0)[0];
-    var gap = wk.west > 0.02 ? 6 * u : 0;
-    var loops = [{ xa: xR + gap, xb: P(wk.sinkE, 0)[0], k: wk.east, cw: true }];
-    if (wk.west > 0.02) loops.push({ xa: P(wk.sinkW, 0)[0], xb: xR - gap, k: wk.west, cw: false });
+    var nino = clamp((1 - wk.east) / 0.45, 0, 1);   // 0: 평상시·라니냐 쪽, 1: 엘니뇨
+    var cloudR = (15 + 13 * wk.convection) * u;
+    var cloudY = yT - cloudR * 0.15;
+
+    // 평상시 구름 자리: 대류 중심이 동쪽으로 옮겨 가면 흐린 구름으로(구름·비가 줄어든 곳)
+    if (wk.rise - w0.rise > 12) D.cloud(ctx, P(w0.rise, 0)[0], cloudY, (15 + 13 * w0.convection) * u * 0.8, 0.32);
 
     // 구름 아래 비 (먼저 그려서 고리 뒤에 보이게)
-    var cloudR = (15 + 13 * wk.convection) * u;
-    var rainTop = yT + cloudR * 0.55;
-    D.rain(ctx, xR, rainTop, yB + 4 * u, cloudR * 1.8, Math.round(5 + 4 * wk.convection), o.motion ? time : 0, 0.85);
+    D.rain(ctx, xR, yT + cloudR * 0.55, yB + 4 * u, cloudR * 1.8, Math.round(5 + 4 * wk.convection), o.motion ? time : 0, 0.85);
 
-    loops.forEach(function (lp) {
-      var r = Math.min((yB - yT) * 0.32, (lp.xb - lp.xa) * 0.3, 30 * u);
-      var pts = loopPoints(lp.xa, lp.xb, yT, yB, r, lp.cw);
-      var cum = polyLen(pts);
-      var lw = (2 + 5 * lp.k) * u + 0.8;
-      ctx.save();
-      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-      ctx.beginPath();
-      pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
-      ctx.closePath();
-      ctx.lineWidth = lw + 2.4; ctx.strokeStyle = t.walkerEdge; ctx.stroke();
-      ctx.lineWidth = lw; ctx.strokeStyle = t.walker; ctx.stroke();
-      // 지표 부근의 바람(무역풍 또는 서풍)
-      ctx.beginPath();
-      ctx.moveTo(lp.xa + r, yB); ctx.lineTo(lp.xb - r, yB);
-      ctx.lineWidth = lw; ctx.strokeStyle = t.surfWind; ctx.stroke();
+    var sinkX = P(wk.sinkE, 0)[0], fillA = 'rgba(255,255,255,0.92)', edgeA = 'rgba(60,80,100,0.55)';
+    if (o.simple) {
+      // 공기의 오르내림만: 구름 옆 올라가는 공기, 동태평양 쪽 내려오는 공기(엘니뇨에 가까울수록 흐려짐)
+      var th = (3 + 2 * wk.convection) * u;
+      ctx.save(); ctx.globalAlpha = 0.9;
+      D.upArrow(ctx, xR - cloudR * 1.35, yB, yT + cloudR * 0.35, th, fillA, edgeA);
       ctx.restore();
-      // 흐름 방향 화살촉
-      var L = cum[cum.length - 1];
-      var spacing = Math.max(46 * u, L / Math.max(3, Math.round(L / (70 * u))));
-      var off = o.motion ? time * (18 + 30 * lp.k) * u : spacing * 0.35;
-      for (var d = 0; d < L - 1; d += spacing) {
-        var q = pointAt(pts, cum, d + off);
-        D.arrowHead(ctx, q[0], q[1], q[2], lw * 0.9 + 4 * u, t.walkerEdge);
-        D.arrowHead(ctx, q[0], q[1], q[2], lw * 0.9 + 2.2 * u, '#ffffff');
+      if (nino < 0.95) {
+        ctx.save(); ctx.globalAlpha = 0.9 * (1 - nino);
+        D.downArrow(ctx, sinkX, yT + (yB - yT) * 0.42, yB, th * 0.9, fillA, edgeA);
+        ctx.restore();
       }
-    });
+    } else {
+      var gap = wk.west > 0.02 ? 6 * u : 0;
+      var loops = [{ xa: xR + gap, xb: sinkX, k: wk.east, cw: true, main: true }];
+      if (wk.west > 0.02) loops.push({ xa: P(wk.sinkW, 0)[0], xb: xR - gap, k: wk.west, cw: false, main: false });
+      loops.forEach(function (lp) {
+        var r = Math.min((yB - yT) * 0.32, (lp.xb - lp.xa) * 0.3, 30 * u);
+        var pts = loopPoints(lp.xa, lp.xb, yT, yB, r, lp.cw);
+        var cum = polyLen(pts);
+        // 굵기는 대략적인 비교(약함·보통·강함)일 뿐 실제 세기의 비율이 아니다. 서쪽 변화 고리는 늘 가늘게
+        var lw = lp.main ? (2 + 5 * lp.k) * u + 0.8 : (1.3 + 1.2 * lp.k) * u + 0.6;
+        ctx.save();
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        if (!lp.main) { ctx.setLineDash([7 * u + 3, 5 * u + 3]); ctx.globalAlpha = 0.85; }
+        ctx.beginPath();
+        pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
+        ctx.closePath();
+        ctx.lineWidth = lw + 2.4; ctx.strokeStyle = t.walkerEdge; ctx.stroke();
+        ctx.lineWidth = lw; ctx.strokeStyle = t.walker; ctx.stroke();
+        // 바다 가까이 부분: 주 고리만 무역풍 색으로(실측에서도 이 구간은 동풍). 서쪽 변화 고리는 바람으로 칠하지 않는다
+        if (lp.main) {
+          ctx.beginPath();
+          ctx.moveTo(lp.xa + r, yB); ctx.lineTo(lp.xb - r, yB);
+          ctx.lineWidth = lw; ctx.strokeStyle = t.surfWind; ctx.stroke();
+        }
+        ctx.restore();
+        // 흐름 방향 화살촉
+        var L = cum[cum.length - 1];
+        var spacing = Math.max(46 * u, L / Math.max(3, Math.round(L / (70 * u))));
+        var off = o.motion ? time * (18 + 30 * lp.k) * u : spacing * 0.35;
+        ctx.save();
+        if (!lp.main) ctx.globalAlpha = 0.85;
+        for (var d = 0; d < L - 1; d += spacing) {
+          var q = pointAt(pts, cum, d + off);
+          D.arrowHead(ctx, q[0], q[1], q[2], lw * 0.9 + 4 * u, t.walkerEdge);
+          D.arrowHead(ctx, q[0], q[1], q[2], lw * 0.9 + 2.2 * u, '#ffffff');
+        }
+        ctx.restore();
+      });
+    }
 
     // 상승 기류 위의 구름
-    D.cloud(ctx, xR, yT - cloudR * 0.15, cloudR);
-    // 하강 기류: 맑고 건조
-    D.sun(ctx, P(wk.sinkE, 0)[0] + 16 * u, yB - (yB - yT) * 0.32, 8 * u + 2);
-    if (wk.west > 0.25) D.sun(ctx, Math.max(12 * u + 4, P(wk.sinkW, 0)[0] - 14 * u), yB - (yB - yT) * 0.32, (5 + 4 * wk.west) * u + 2);
-    return { xR: xR, yT: yT, yB: yB, cloudR: cloudR };
+    D.cloud(ctx, xR, cloudY, cloudR);
+    // 동태평양 하강 쪽: 상대적으로 건조(해). 엘니뇨에 가까울수록 흐려짐
+    var sunA = clamp(1 - 1.6 * nino, 0, 1);
+    if (sunA > 0.03) {
+      ctx.save(); ctx.globalAlpha = sunA;
+      D.sun(ctx, sinkX + 16 * u, yB - (yB - yT) * 0.32, 8 * u + 2);
+      ctx.restore();
+    }
+    return { xR: xR, yT: yT, yB: yB, cloudR: cloudR, sinkX: sinkX };
   };
 
   window.ENSODraw = D;

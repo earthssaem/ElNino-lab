@@ -102,8 +102,10 @@
       // 엘니뇨로 동태평양 연안 바다가 충분히 따뜻해지면(모형 표층 수온 26.5 °C 이상) 해안에도 비구름
       coast: eSST >= 26.5 ? clamp((eSST - 26.5) / 1.2, 0.4, 1) : 0,
       sunX: L.lonToX(269), sunY: L.padT + skyH * 0.3, sunR: 7 * u2 + 3,
-      dry: s <= -0.4, dX: (L.padL + L.ox0) / 2 + 2
+      // 대류 중심이 동쪽으로 옮겨 가면 평상시 구름 자리에 흐린 구름(서태평양 비 감소. '맑음'으로 그리지 않음)
+      dry: wk.rise - E.walker(0).rise > 12, gR: (12 + 11 * E.walker(0).convection) * u2 * 0.8
     };
+    g.gX = clamp(L.lonToX(E.walker(0).rise), L.ox0 + g.gR * 0.9, L.ox1 - g.gR * 1.5);
     g.cR = r * (0.45 + 0.15 * g.coast); g.cX = L.lonToX(270); g.cY = g.cy + r * 0.3;
     return g;
   }
@@ -145,7 +147,7 @@
     darwin: function () { return prGeo ? [prGeo.darwin] : []; },
     tahiti: function () { return prGeo ? [prGeo.tahiti] : []; },
     soi: function () { return prGeo && prGeo.soi ? [prGeo.soi] : []; },
-    drywest: function () { return [box(L.padL + 1, L.padT + 2, L.lonToX(150), L.ySL + 6)]; }
+    drywest: function () { var g = geoAir(); return [box(L.padL + 1, L.padT + 2, Math.max(L.lonToX(150), g.gX + g.gR * 1.3), L.ySL + 6)]; }
   };
 
   /* ── 바탕 (s·크기·그림 층이 같으면 다시 그리지 않음) ── */
@@ -252,7 +254,7 @@
     D.cloud(c, g.cx, g.cy, r);
     if (g.coast) D.cloud(c, g.cX, g.cY, g.cR);
     else D.sun(c, g.sunX, g.sunY, g.sunR);
-    if (g.dry) D.sun(c, g.dX, g.sunY, g.sunR * 0.9);   // 엘니뇨 때 인도네시아 쪽은 비가 줄어 맑고 건조
+    if (g.dry) D.cloud(c, g.gX, g.cy, g.gR, 0.32);   // 엘니뇨 때 서태평양은 평상시보다 구름·비가 줄어듦
   }
 
   // 워커 순환 고리(지구과학 PART C): ② 비교 그림과 같은 D.drawWalker

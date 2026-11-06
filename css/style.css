@@ -325,6 +325,7 @@ a.brand:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   border: 1.5px solid currentColor;
   background: transparent;
 }
+.chk i { font-style: normal; }   /* 과목별 글자(.only-earth / .only-int)를 단추 안에 넣을 때 */
 .chk input:checked + span { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .chk input:checked + span::before {
   background: var(--accent);

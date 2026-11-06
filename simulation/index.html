@@ -191,7 +191,7 @@
           <div class="cbar-ticks" id="cmp-cbar-ticks"></div>
         </div>
         <div class="toggles" role="group" aria-label="보기 설정">
-          <label class="chk"><input type="checkbox" id="cmp-walker"><span>대기 순환</span></label>
+          <label class="chk"><input type="checkbox" id="cmp-walker"><span><i class="only-earth">대기 순환</i><i class="only-int">공기의 오르내림</i></span></label>
           <label class="chk"><input type="checkbox" id="cmp-flow" checked><span>해수 흐름</span></label>
           <label class="chk only-earth"><input type="checkbox" id="cmp-iso"><span>모든 등온선</span></label>
           <label class="chk"><input type="checkbox" id="cmp-motion" checked><span>움직임</span></label>
@@ -212,6 +212,7 @@
           <canvas id="cmp-2" role="img" aria-label="라니냐 때 적도 태평양 단면"></canvas>
         </figure>
       </div>
+      <p class="hint walker-note" id="cmp-walker-note" hidden><span class="only-earth">대기 순환 고리는 대표적인 순환을 단순하게 나타낸 <b>모식도</b>예요. 굵기와 화살표는 실제 바람의 세기·방향을 잰 값이 아니고, 구름 위치만 실측 강수(GPCP)에서 정했어요. 엘니뇨 때 서쪽의 <b>점선 고리</b>는 평상시와 비교한 변화(서태평양의 상승 운동 약화·하강 운동 강화 경향)를 뜻해요. 실제로 이곳 바다 가까이의 바람은 엘니뇨 때도 대체로 약한 동풍이에요. 흐린 구름은 평상시 구름 자리로, 비가 줄어든 곳이에요. 실제 무역풍 화살표는 '대기 순환'을 끄면 보여요.</span><span class="only-int">공기가 올라가는 곳(구름·비)과 내려오는 곳을 단순하게 나타낸 그림이에요. 구름 위치는 실제 강수 자료에서 정했어요. 흐린 구름은 평상시 구름이 있던 곳으로, 엘니뇨 때는 이곳의 비가 줄어요. 실제 무역풍 화살표는 '공기의 오르내림'을 끄면 보여요.</span></p>
       <p class="hint" id="cmp-hint">그림 위를 누르거나 움직이면 모든 그림의 같은 경도를 함께 비교합니다.</p>
 
       <div class="card matrix-card">
@@ -275,11 +276,12 @@
           <div class="badge" id="so-badge" data-phase="normal">평상시</div>
         </div>
         <ul class="keys map-keys">
-          <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--walker)" stroke-width="4" stroke-linecap="round"/></svg>워커 순환</li>
-          <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--surface-wind)" stroke-width="4" stroke-linecap="round"/></svg>지표 부근 바람</li>
+          <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--walker)" stroke-width="4" stroke-linecap="round"/></svg>워커 순환(모식도)</li>
+          <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--walker)" stroke-width="2" stroke-dasharray="5 3"/></svg>엘니뇨 때 서쪽의 변화(상승 약화·하강 강화 경향)</li>
+          <li><svg viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" style="stroke:var(--surface-wind)" stroke-width="4" stroke-linecap="round"/></svg>고리 아래쪽(바다 가까이 흐름)</li>
           <li><span class="gauge-key">▲</span>평상시보다 기압 높음</li>
           <li><span class="gauge-key lo">▼</span>평상시보다 기압 낮음</li>
-          <li class="map-note">순환 그림은 실측 자료로 맞춘 모형이에요. 그래프에서 달을 고르면 그 달의 수온 편차에 맞춘 모습으로 바뀝니다.</li>
+          <li class="map-note">순환 고리는 대표적인 대기 순환을 단순하게 나타낸 모식도예요. 굵기와 화살표는 실제 바람의 세기·방향을 잰 값이 아니고, 구름 위치만 실측 강수(GPCP)에서 정했어요. 흐린 구름은 평상시 구름 자리(비가 줄어든 곳)예요. 그래프에서 달을 고르면 그 달의 수온 편차에 맞춘 모습으로 바뀝니다.</li>
         </ul>
       </div>
 

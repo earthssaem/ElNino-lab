@@ -235,6 +235,11 @@
   function drawRain(c) {
     var wk = E.walker(st), skyH = L.ySL - L.padT, r = (10 + 8 * wk.convection) * clamp(W / 800, 0.6, 1.1);
     var x = clamp(L.lonToX(wk.rise), L.ox0 + r, L.ox1 - r), y = L.padT + skyH * 0.2 + r * 0.3;
+    var w0 = E.walker(0);   // 평상시 구름 자리: 구름이 동쪽으로 옮겨 가면 흐린 구름(구름·비가 줄어든 곳)
+    if (wk.rise - w0.rise > 12) {
+      var r0 = (10 + 8 * w0.convection) * clamp(W / 800, 0.6, 1.1) * 0.8;
+      D.cloud(c, clamp(L.lonToX(w0.rise), L.ox0 + r0, L.ox1 - r0), y, r0, 0.32);
+    }
     D.rain(c, x, y + r * 0.45, L.ySL - 2, r * 1.6, Math.round(4 + 4 * wk.convection), opts.motion ? time : 0, 0.8);
     D.cloud(c, x, y, r);
   }
