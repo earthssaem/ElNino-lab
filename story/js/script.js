@@ -8,7 +8,7 @@
  *   s     이 대사의 상태(−1 강한 엘니뇨 … 0 평상시 … +1 강한 라니냐). 생략하면 앞 대사 그대로
  *   badge 그림 위 딱지(normal·weak·nino·strong·nina). 생략하면 앞 대사 그대로
  *   show  이 대사부터 나타나는 그림 층(누적, '-층'은 감춤): wind 무역풍 · flow 표층 바닷물 이동 · sea 해수면 높이 차
- *         thermo 따뜻한 해수층(통합과학)·수온약층과 20 ℃ 등온선(지구과학) · up 용승 · fish 어장 · air 공기의 오르내림과 구름·비
+ *         thermo 따뜻한 해수층 이름(통합과학, 선 없음)·수온약층과 20 ℃ 등온선(지구과학) · up 용승 · fish 어장 · air 공기의 오르내림과 구름·비
  *         walker 워커 순환 고리 · pressure 다윈·타히티 기압 편차 · soi 남방진동 지수
  *   hl    밝게 비출 곳: westsea · eastsea · wind · flow · sea · thermo · up · fish · cloud · sink · drywest
  *         walker · rise(상승 기류) · lower(지표 부근 바람) · darwin · tahiti · soi
@@ -75,7 +75,7 @@
       { who: 'west', show: ['sea'], hl: ['sea'],
         t: '밀려온 따뜻한 물이 나한테 쌓여. 그래서 서쪽은 해수면이 동쪽보다 높아.' },
       { who: 'west', show: ['thermo'], hl: ['thermo'],
-        t: { integrated: '따뜻한 물의 층도 두꺼워. 진한 선 아래부터는 차가운 물이야.',
+        t: { integrated: '따뜻한 물의 층도 두꺼워. 붉은색이 깊게 내려와 있고, 그 아래로 갈수록 차가운 물이야.',
           earth: '따뜻한 물의 층도 두꺼워. 흰 선 아래부터는 깊어질수록 수온이 빠르게 낮아지는 수온약층이야.' },
         key: '무역풍 → 따뜻한 표층 바닷물이 서쪽으로 이동 → 서쪽은 해수면이 높고 따뜻한 물의 층이 두꺼워요.' },
       { who: 'west', only: 'earth', hl: ['thermo'],
