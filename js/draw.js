@@ -817,7 +817,7 @@
       // 공기의 오르내림만: 구름 옆 올라가는 공기, 동태평양 쪽 내려오는 공기(엘니뇨에 가까울수록 흐려짐)
       var th = (3 + 2 * wk.convection) * u;
       ctx.save(); ctx.globalAlpha = 0.9;
-      D.upArrow(ctx, xR - cloudR * 1.35, yB, yT + cloudR * 0.35, th, fillA, edgeA);
+      D.upArrow(ctx, xR, yB, cloudY + cloudR * 0.4, th, fillA, edgeA);   // 구름 한가운데 아래에서 구름 속으로(구름은 나중에 덮어 그림)
       ctx.restore();
       if (nino < 0.95) {
         ctx.save(); ctx.globalAlpha = 0.9 * (1 - nino);
