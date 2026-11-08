@@ -149,7 +149,7 @@
     soi: function () { return prGeo && prGeo.soi ? [prGeo.soi] : []; },
     drywest: function () {   // 워커 순환 고리 장면(지구과학)은 예전 크기, 공기 오르내림 장면은 변화 화살표 글자까지
       var g = geoAir(), x1 = Math.max(L.lonToX(150), g.gX + g.gR * 1.3);
-      if (!wkGeo && !prGeo) x1 = Math.max(x1, g.gX + 16 * g.u2 + fsz(-1) * 7.5);
+      if (!wkGeo && !prGeo && subj === 'earth') x1 = Math.max(x1, g.gX + 16 * g.u2 + fsz(-1) * 7.5);
       return [box(L.padL + 1, L.padT + 2, x1, L.ySL + 6)];
     }
   };
@@ -177,7 +177,7 @@
     // 워커 순환·기압 표시가 하늘을 채우는 단계에서는 땅 이름과 해수면 높이 차 표시를 감춘다(겹치지 않게)
     var busy = sh.walker || sh.pressure;
     // 좁은 화면에서 서태평양 변화 화살표의 글자가 들어갈 자리가 없으면 땅 이름을 감춘다(겹침 방지)
-    var crowd = sh.air && W < 480 && E.walker(s).rise - E.walker(0).rise > 12;
+    var crowd = subj === 'earth' && sh.air && W < 480 && E.walker(s).rise - E.walker(0).rise > 12;
     D.drawLand(b, L, s, { names: !busy && !crowd });
     D.text(b, '깊은 곳의 차가운 바닷물', L.lonToX(205), L.zToY(262), { size: fs - 1, weight: 600, color: '#e6f0ff', haloColor: 'rgba(10,30,70,0.55)' });
 
@@ -260,7 +260,16 @@
     D.cloud(c, g.cx, g.cy, r);
     if (g.coast) D.cloud(c, g.cX, g.cY, g.cR);
     else D.sun(c, g.sunX, g.sunY, g.sunR);
-    if (g.dry) {   // 엘니뇨 때 서태평양: 평상시보다 구름·비가 줄고(흐린 구름), 상승 약화·하강 강화(변화 화살표, 실제 하강 기류 아님)
+    if (g.dry && subj === 'integrated') {
+      // 통합과학2(학습지의 교과서형 모식도): 흐린 구름과 약한 비(비가 줄었지만 그치지 않음) + 그 서쪽에 하강 기류(동쪽 하강과 같은 흰 화살표)
+      var wX = Math.max(L.ox0 + th * 2, g.gX - g.gR * 2.2);
+      var wY1 = sh && sh.sea ? L.ySL - fsz() * 2.1 : L.ySL - 6;   // '해수면 높이 차' 표시와 겹치지 않게
+      D.rain(c, g.gX, g.cy + g.gR * 0.45, L.ySL + 2, g.gR * 1.3, 3, tm, 0.35);
+      D.cloud(c, g.gX, g.cy, g.gR, 0.32);
+      c.save(); c.globalAlpha = 0.85;
+      downArrow(c, wX, g.sunY + g.sunR * 1.7, wY1, th * 0.9, 'rgba(255,255,255,0.92)', 'rgba(60,80,100,0.55)');
+      c.restore();
+    } else if (g.dry) {   // 지구과학: 평상시보다 구름·비가 줄고(흐린 구름), 상승 약화·하강 강화(변화 화살표, 실제 하강 기류 아님)
       D.cloud(c, g.gX, g.cy, g.gR, 0.32);
       // 바다 위 '해수면 높이 차' 글자와 겹치지 않게 조금 위에서 멈춤. 기압 표시 장면(지구과학 PART D)에서는 겹치므로 생략
       if (!(sh && sh.pressure)) D.changeArrow(c, g.gX, g.cy + g.gR * 0.85, L.ySL - fsz() * 2.1, th, { lines: D.CHANGE_LINES, narrow: D.CHANGE_LINES_NARROW, size: fsz(-1), right: g.cx - r * 1.45 - th });

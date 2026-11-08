@@ -794,7 +794,8 @@
        실측 합성에서 이곳의 바다 가까이 바람은 엘니뇨 때도 약한 동풍이다.
      - 서태평양의 비가 줄어드는 것은 '맑음'이 아니라 평상시 구름 자리의 흐린 구름으로 나타낸다(실측: 비 약 35 % 감소, 여전히 월 90~140 mm).
      - 동태평양 하강 쪽의 해(맑음)는 엘니뇨에 가까울수록 흐려진다(실측: 엘니뇨 때 98°W 강수 약 2배).
-     - o.simple: 고리 없이 공기의 오르내림 화살표만(통합과학). 엘니뇨 때 서태평양은 흐린 구름 + 평상시 대비 변화 화살표(D.changeArrow) */
+     - o.simple: 고리 없이 공기의 오르내림 화살표만(통합과학2, 학습지의 교과서형 모식도). 평상시 서쪽 상승·동쪽 하강,
+       엘니뇨 때 중앙 쪽 상승(GPCP)·서태평양 하강(같은 흰 화살표)과 흐린 구름·약한 비(비가 줄었지만 그치지 않음) */
   D.drawWalker = function (ctx, P, s, time, o) {
     var t = D.theme();
     var wk = E.walker(s), w0 = E.walker(0), u = o.u;
@@ -824,7 +825,14 @@
         ctx.restore();
       }
       // 서태평양: 평상시보다 상승 운동 약화·하강 운동 강화(변화). 실제 하강 기류가 아니라 평상시 대비 변화라 속 빈 점선으로
-      if (shift > 12) D.changeArrow(ctx, ghostX, cloudY + ghostR * 0.9, yB, th, { alpha: clamp((shift - 8) / 20, 0, 1), lines: D.CHANGE_LINES, narrow: D.CHANGE_LINES_NARROW, size: clamp(10 * u + 1.5, 10, 12), right: xR - cloudR * 1.35 - th });
+      // 엘니뇨 때 서태평양 하강 기류(교과서형 모식도): 상승·하강과 같은 흰 화살표. 흐린 구름(비가 줄었지만 그치지 않음, 약한 비)의 서쪽에
+      if (shift > 12) {
+        var wa = clamp((shift - 8) / 20, 0, 1), wx = Math.max(P(E.LON_W, 0)[0] + th * 2, ghostX - ghostR * 1.9);
+        D.rain(ctx, ghostX, cloudY + ghostR * 0.5, yB + 4 * u, ghostR * 1.4, 3, o.motion ? time : 0, 0.35 * wa);
+        ctx.save(); ctx.globalAlpha = 0.9 * wa;
+        D.downArrow(ctx, wx, yT + (yB - yT) * 0.42, yB, th * 0.9, fillA, edgeA);
+        ctx.restore();
+      }
     } else {
       var gap = wk.west > 0.02 ? 6 * u : 0;
       var loops = [{ xa: xR + gap, xb: sinkX, k: wk.east, cw: true, main: true }];
