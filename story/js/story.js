@@ -254,7 +254,8 @@
     D.rain(c, g.cx, g.cy + r * 0.45, L.ySL + 2, r * 1.7, Math.round(5 + 4 * g.wk.convection), tm, 0.85);
     if (g.coast) D.rain(c, g.cX, g.cY + g.cR * 0.45, L.ySL + 2, g.cR * 1.6, Math.round(2 + 3 * g.coast), tm, 0.8);
     c.save(); c.globalAlpha = 0.85;
-    D.upArrow(c, g.cx - r * 1.45, L.ySL - 6, g.cy + r * 0.25, th, 'rgba(255,255,255,0.92)', 'rgba(60,80,100,0.55)');
+    // 상승 기류: 통합과학2는 구름 한가운데 아래(구름이 덮어 그려져 구름 속으로 들어가 보임), 지구과학은 예전대로 구름 왼쪽
+    D.upArrow(c, subj === 'integrated' ? g.cx : g.cx - r * 1.45, L.ySL - 6, g.cy + r * 0.25, th, 'rgba(255,255,255,0.92)', 'rgba(60,80,100,0.55)');
     if (!g.coast) downArrow(c, g.sunX, g.sunY + g.sunR * 1.7, L.ySL - 6, th * 0.9, 'rgba(255,255,255,0.92)', 'rgba(60,80,100,0.55)');
     c.restore();
     D.cloud(c, g.cx, g.cy, r);
