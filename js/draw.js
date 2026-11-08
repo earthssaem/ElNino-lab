@@ -151,6 +151,44 @@
     ctx.restore();
   };
 
+  /* 평상시와 비교한 변화를 나타내는 아래쪽 화살표: 속이 빈 점선 + '평상시보다…' 글자.
+     실제 기류(흰 채운 화살표)와 모양을 달리해, 하강 기류의 실제 위치·세기를 잰 값처럼 보이지 않게 한다. */
+  D.changeArrow = function (ctx, x, y0, y1, th, o) {
+    o = o || {};
+    if (y1 - y0 < 16) return;
+    var t = D.theme(), sw = th * 0.45, hw = th * 1.1, hl = Math.min(th * 2, (y1 - y0) * 0.4);
+    ctx.save();
+    ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
+    ctx.beginPath();
+    ctx.moveTo(x - sw, y0); ctx.lineTo(x + sw, y0); ctx.lineTo(x + sw, y1 - hl); ctx.lineTo(x + hw, y1 - hl);
+    ctx.lineTo(x, y1); ctx.lineTo(x - hw, y1 - hl); ctx.lineTo(x - sw, y1 - hl); ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill();
+    ctx.setLineDash([4, 3]); ctx.lineWidth = 1.6; ctx.lineJoin = 'round'; ctx.strokeStyle = t.ink; ctx.stroke();
+    ctx.restore();
+    if (o.lines) {
+      // 글자는 오른쪽에 두되, o.right(오른쪽에 있는 다른 그림의 x)와 겹치면 왼쪽으로. 좁은 화면에서는 세 줄(o.narrow)로
+      var fs = o.size || 11, pick = null;
+      [o.lines, o.narrow || o.lines].some(function (ls) {
+        var tw = 0;
+        ctx.save(); ctx.font = D.font(fs, 700);
+        ls.forEach(function (str) { tw = Math.max(tw, ctx.measureText(str).width); });
+        ctx.restore();
+        if (o.right == null || x + hw + 5 + tw <= o.right - 4) { pick = { ls: ls, left: false }; return true; }
+        if (x - hw - 5 - tw >= 2) { pick = { ls: ls, left: true }; return true; }
+        return false;
+      });
+      if (!pick) pick = { ls: o.narrow || o.lines, left: true };
+      var lines = pick.ls, left = pick.left, ly = (y0 + y1) / 2 - (lines.length - 1) * fs * 0.6;
+      ctx.save(); ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
+      lines.forEach(function (str, i) {
+        D.text(ctx, str, left ? x - hw - 5 : x + hw + 5, ly + i * fs * 1.2, { size: fs, weight: i ? 700 : 600, align: left ? 'right' : 'left', color: t.ink });
+      });
+      ctx.restore();
+    }
+  };
+  D.CHANGE_LINES = ['평상시보다', '상승 약화·하강 강화'];
+  D.CHANGE_LINES_NARROW = ['평상시보다', '상승 약화', '하강 강화'];
+
   // 선 끝 화살촉
   function arrowHead(ctx, x, y, ang, size, fill) {
     ctx.save();
@@ -756,7 +794,7 @@
        실측 합성에서 이곳의 바다 가까이 바람은 엘니뇨 때도 약한 동풍이다.
      - 서태평양의 비가 줄어드는 것은 '맑음'이 아니라 평상시 구름 자리의 흐린 구름으로 나타낸다(실측: 비 약 35 % 감소, 여전히 월 90~140 mm).
      - 동태평양 하강 쪽의 해(맑음)는 엘니뇨에 가까울수록 흐려진다(실측: 엘니뇨 때 98°W 강수 약 2배).
-     - o.simple: 고리 없이 공기의 오르내림 화살표만(통합과학) */
+     - o.simple: 고리 없이 공기의 오르내림 화살표만(통합과학). 엘니뇨 때 서태평양은 흐린 구름 + 평상시 대비 변화 화살표(D.changeArrow) */
   D.drawWalker = function (ctx, P, s, time, o) {
     var t = D.theme();
     var wk = E.walker(s), w0 = E.walker(0), u = o.u;
@@ -767,7 +805,8 @@
     var cloudY = yT - cloudR * 0.15;
 
     // 평상시 구름 자리: 대류 중심이 동쪽으로 옮겨 가면 흐린 구름으로(구름·비가 줄어든 곳)
-    if (wk.rise - w0.rise > 12) D.cloud(ctx, P(w0.rise, 0)[0], cloudY, (15 + 13 * w0.convection) * u * 0.8, 0.32);
+    var shift = wk.rise - w0.rise, ghostR = (15 + 13 * w0.convection) * u * 0.8, ghostX = P(w0.rise, 0)[0];
+    if (shift > 12) D.cloud(ctx, ghostX, cloudY, ghostR, 0.32);
 
     // 구름 아래 비 (먼저 그려서 고리 뒤에 보이게)
     D.rain(ctx, xR, yT + cloudR * 0.55, yB + 4 * u, cloudR * 1.8, Math.round(5 + 4 * wk.convection), o.motion ? time : 0, 0.85);
@@ -784,6 +823,8 @@
         D.downArrow(ctx, sinkX, yT + (yB - yT) * 0.42, yB, th * 0.9, fillA, edgeA);
         ctx.restore();
       }
+      // 서태평양: 평상시보다 상승 운동 약화·하강 운동 강화(변화). 실제 하강 기류가 아니라 평상시 대비 변화라 속 빈 점선으로
+      if (shift > 12) D.changeArrow(ctx, ghostX, cloudY + ghostR * 0.9, yB, th, { alpha: clamp((shift - 8) / 20, 0, 1), lines: D.CHANGE_LINES, narrow: D.CHANGE_LINES_NARROW, size: clamp(10 * u + 1.5, 10, 12), right: xR - cloudR * 1.35 - th });
     } else {
       var gap = wk.west > 0.02 ? 6 * u : 0;
       var loops = [{ xa: xR + gap, xb: sinkX, k: wk.east, cw: true, main: true }];
