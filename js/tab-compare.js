@@ -111,7 +111,7 @@
       D.drawIso20(b, L, s, { mode: opts.mode, label: L.w > 300 ? '20 ℃' : '', labelLon: 226 });
     }
     D.drawLand(b, L, s, {});
-    if (opts.flow) D.drawFlowGlyphs(b, L, s, { labels: false });
+    if (opts.flow) D.drawFlowGlyphs(b, L, s, { labels: false, simple: subj === 'integrated', warmLabel: L.w > 300 });
     // 서 · 동
     var t = D.theme(), fs = clamp(11 * L.u + 3.5, 10.5, 13);
     D.text(b, '서', L.padL + 10, L.yBot - 12, { size: fs, weight: 700, color: '#fff', haloColor: 'rgba(0,0,0,0.4)' });

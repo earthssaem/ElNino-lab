@@ -86,11 +86,16 @@
   }
   function geoFlow() {
     var w = E.wind(s), y = L.zToY(12);
-    return { x0: L.lonToX(258), x1: L.lonToX(258 - 38 - 42 * w), y: y, th: (2.5 + 4 * w) * L.u + 1.5, ly: y + (8 + 5 * w) * L.u + 6, fs: fsz(2.5) };
+    if (subj === 'integrated') {   // 통합과학2: 학습지 방식 — 평상시 서쪽 표층 해수, 엘니뇨 따뜻한 해수의 동쪽 확장(D.schemFlow)
+      var sf = D.schemFlow(L, s), a = sf.east || sf.west;
+      return { x0: a.x0, x1: a.x1, y: y, th: a.th, ly: y + a.th + fsz(2.5) * 0.8 + 4, fs: fsz(2.5), warm: !!sf.east, a: Math.max(0.35, a.a) };
+    }
+    return { x0: L.lonToX(258), x1: L.lonToX(258 - 38 - 42 * w), y: y, th: (2.5 + 4 * w) * L.u + 1.5, ly: y + (8 + 5 * w) * L.u + 6, fs: fsz(2.5), warm: false, a: 1 };
   }
   function geoUp() {
+    if (subj === 'integrated') { var su = D.schemUp(L, s); return { x: su.x, yB: su.yB, yT: su.yT, th: su.th, fs: fsz(4), a: su.a }; }   // 평상시 크게, 엘니뇨 작고 흐리게
     var U = E.upwelling(s), c = E.column(268, s);
-    return { x: L.lonToX(268), yB: L.zToY(Math.min(200, c.D + 55)), yT: L.zToY(Math.max(3, c.M * 0.3)) + 2, th: (2.5 + 6 * Math.min(U, 2) / 2) * L.u + 2, fs: fsz(4) };
+    return { x: L.lonToX(268), yB: L.zToY(Math.min(200, c.D + 55)), yT: L.zToY(Math.max(3, c.M * 0.3)) + 2, th: (2.5 + 6 * Math.min(U, 2) / 2) * L.u + 2, fs: fsz(4), a: 1 };
   }
   function geoAir() {
     var wk = E.walker(s), u2 = clamp(W / 700, 0.6, 1.15), skyH = L.ySL - L.padT;
@@ -119,7 +124,7 @@
       return [box(L.lonToX(229), Math.min(L.surfY(229, s), L.surfY(279, s)) - 8, L.lonToX(279.6), L.zToY(Math.max(E.mixedLayer(268, s) + 30, 80)))];
     },
     wind: function () { return [geoWind()]; },
-    flow: function () { var g = geoFlow(); return [box(g.x1 - 8, g.y - g.th * 1.1 - 6, g.x0 + 8, g.ly + g.fs * 0.8)]; },
+    flow: function () { var g = geoFlow(); return [box(Math.min(g.x0, g.x1) - 8, g.y - g.th * 1.1 - 6, Math.max(g.x0, g.x1) + 8, g.ly + g.fs * 0.8)]; },
     sea: function () {
       var lo = Infinity, hi = -Infinity;
       for (var lon = E.LON_W; lon <= E.LON_E; lon += 5) { var y = L.surfY(lon, s); lo = Math.min(lo, y); hi = Math.max(hi, y); }
@@ -200,14 +205,18 @@
     }
     if (sh.flow) {
       var g = geoFlow();
-      b.save(); b.globalAlpha = 0.9;
-      D.blockArrow(b, g.x0, g.x1, g.y, g.th, 'rgba(255,255,255,0.72)', 'rgba(20,30,40,0.35)');
+      b.save(); b.globalAlpha = 0.9 * g.a;
+      if (g.warm) D.blockArrow(b, g.x0, g.x1, g.y, g.th, D.WARM_FILL, D.WARM_EDGE);
+      else D.blockArrow(b, g.x0, g.x1, g.y, g.th, 'rgba(255,255,255,0.72)', 'rgba(20,30,40,0.35)');
       b.restore();
-      D.text(b, '표층 바닷물', (g.x0 + g.x1) / 2, g.ly, { size: g.fs, weight: 700, color: '#10202a', haloColor: 'rgba(255,255,255,0.8)' });
+      if (g.warm) D.text(b, '따뜻한 바닷물의 동쪽 확장', (g.x0 + g.x1) / 2, g.ly, { size: g.fs, weight: 700, color: '#3a0a06', haloColor: 'rgba(255,235,220,0.85)' });
+      else D.text(b, '표층 바닷물', (g.x0 + g.x1) / 2, g.ly, { size: g.fs, weight: 700, color: '#10202a', haloColor: 'rgba(255,255,255,0.8)' });
     }
     if (sh.up) {
       var u = geoUp();
+      b.save(); b.globalAlpha = u.a;
       D.upArrow(b, u.x, u.yB, u.yT, u.th, 'rgba(214,245,255,0.93)', 'rgba(16,40,70,0.6)');
+      b.restore();
       D.text(b, '용승', u.x - u.th - u.fs * 1.3, (u.yB + u.yT) / 2 + 6, { size: u.fs, weight: 800, color: '#0b2a44', haloColor: 'rgba(225,248,255,0.9)' });
     }
   }

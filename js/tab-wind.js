@@ -176,7 +176,7 @@
     }
     D.drawLand(b, L, s, { names: true });
     D.drawAxes(b, L);
-    D.drawFlowGlyphs(b, L, s, { labels: true });
+    D.drawFlowGlyphs(b, L, s, { labels: true, simple: subj === 'integrated' });
 
     // 층 이름: 지구과학은 혼합층·수온 약층, 통합과학은 따뜻한 해수층
     var colW = E.column(160, s);
