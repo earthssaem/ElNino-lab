@@ -80,11 +80,11 @@
       // 한 줄에 하나씩 (휴대폰)
       h = Math.round(w > 600 ? w * 0.6 : w * 1.02);
     } else {
-      // 가로 3단: 세 그림이 스크롤 없이 한 화면에 들어오도록 화면 높이에 맞춘다
+      // 가로 여러 단(지구과학 3단·통합과학2 2단): 그림이 스크롤 없이 한 화면에 들어오도록 화면 높이에 맞춘다
       var top = Math.max.apply(null, panels.map(function (q) { return q.cv.getBoundingClientRect().top; })) +
         (window.scrollY || window.pageYOffset || 0);
       var avail = window.innerHeight - top - parseFloat(cs.paddingBottom) - 14;
-      h = Math.round(clamp(avail, Math.max(200, w * 0.62), w * 1.05));
+      h = Math.round(clamp(avail, Math.max(200, w * 0.42), w * 1.05));   // 넓은 화면(두 그림)에서도 한 화면에 들어오게 납작한 비율까지 허용
     }
     if (w === p.W && h === p.H) return;
     p.W = w; p.H = h;

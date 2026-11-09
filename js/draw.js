@@ -141,6 +141,19 @@
     ctx.restore();
   };
 
+  /* 한 화면 맞춤: 그림(stage)이 들어갈 수 있는 높이 = 창 높이 − 그림 위쪽 위치 − 같은 카드 안에서 그림 아래에 오는 조작부 높이.
+     그림 높이를 바꿔도 위쪽·아래쪽 요소의 크기는 그대로라 다시 계산해도 값이 바뀌지 않는다(되먹임 없음). */
+  D.fitHeight = function (stage, margin) {
+    var r = stage.getBoundingClientRect(), below = 0, el = stage.nextElementSibling, card = stage.parentNode;
+    for (; el; el = el.nextElementSibling) {
+      if (!el.offsetParent) continue;
+      var cs = getComputedStyle(el);
+      below += el.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+    }
+    below += parseFloat(getComputedStyle(card).paddingBottom) + 2;
+    return window.innerHeight - (r.top + (window.scrollY || window.pageYOffset || 0)) - below - (margin == null ? 12 : margin);
+  };
+
   // 아래쪽을 가리키는 굵은 화살표 (y0 → y1, y1 > y0)
   D.downArrow = function (ctx, x, y0, y1, thick, fill, edge) {
     if (y1 - y0 < 10) return;

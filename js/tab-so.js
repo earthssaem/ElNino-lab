@@ -96,7 +96,7 @@
     if (!w) return;
     // 그래프가 가로로 넘치면 손가락으로 가로 스크롤할 수 있게 한다 (아니면 CSS의 pan-y: 끌어서 시기 이동)
     $('so-chart').style.touchAction = chartScrolls() ? 'pan-x pan-y' : '';
-    var h = Math.round(w < 600 ? w * 1.12 : clamp(w * 0.5, 340, 600));
+    var h = Math.round(w < 600 ? w * 1.12 : clamp(Math.min(w * 0.5, D.fitHeight(stage)), Math.max(300, w * 0.32), 600));   // 지도와 범례가 한 화면에
     if (w === W && h === H) return;
     W = w; H = h;
     dpr = Math.min(2, window.devicePixelRatio || 1);
