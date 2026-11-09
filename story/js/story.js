@@ -267,6 +267,7 @@
     D.upArrow(c, subj === 'integrated' ? g.cx : g.cx - r * 1.45, L.ySL - 6, g.cy + r * 0.25, th, 'rgba(255,255,255,0.92)', 'rgba(60,80,100,0.55)');
     if (!g.coast) downArrow(c, g.sunX, g.sunY + g.sunR * 1.7, L.ySL - 6, th * 0.9, 'rgba(255,255,255,0.92)', 'rgba(60,80,100,0.55)');
     c.restore();
+    if (subj === 'integrated') D.drawRainBand(c, s, L.lonToX, g.cy, r, L.ySL + 2, tm, L.ox1 - r);   // 동쪽으로 이어진 비구름 띠(통합과학2)
     D.cloud(c, g.cx, g.cy, r);
     if (g.coast) D.cloud(c, g.cX, g.cY, g.cR);
     else D.sun(c, g.sunX, g.sunY, g.sunR);

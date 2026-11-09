@@ -242,6 +242,7 @@
       D.cloud(c, clamp(L.lonToX(w0.rise), L.ox0 + r0, L.ox1 - r0), y, r0, 0.32);
     }
     D.rain(c, x, y + r * 0.45, L.ySL - 2, r * 1.6, Math.round(4 + 4 * wk.convection), opts.motion ? time : 0, 0.8);
+    D.drawRainBand(c, st, L.lonToX, y, r, L.ySL - 2, opts.motion ? time : 0, L.ox1);   // 동쪽으로 이어진 비구름 띠(실측 강수 범위)
     D.cloud(c, x, y, r);
   }
 
@@ -349,8 +350,9 @@
     $('ro-wind').textContent = Math.round(wind * 100);
     $('ro-wind-b').style.width = clamp(wind / 1.4, 0.03, 1) * 100 + '%';
     var rise = E.walker(s).rise;
-    $('ro-rain').textContent = rise < 166 ? '서태평양 (인도네시아 부근)' : '중앙 태평양 쪽으로 이동';
-    $('ro-rain-s').textContent = rise < 166 ? '따뜻한 바다 위에서 공기가 올라가 구름이 생기고 비가 내려요.' : '따뜻한 바닷물을 따라 구름과 비가 동쪽으로 옮겨 가요.';
+    var wide = E.rainBandEast(s) >= 215;   // 비가 많이 오는 띠가 동태평양 쪽(135°W 동쪽)까지 넓어졌는지
+    $('ro-rain').textContent = rise < 166 ? '서태평양 (인도네시아 부근)' : wide ? '중앙·동태평양 쪽으로 넓어짐' : '중앙 태평양 쪽으로 이동';
+    $('ro-rain-s').textContent = rise < 166 ? '따뜻한 바다 위에서 공기가 올라가 구름이 생기고 비가 내려요.' : '따뜻한 바닷물을 따라 비가 많이 오는 곳이 동쪽으로 옮겨 가고 넓어져요.';
 
     $('ro-mld-w').textContent = fmt(mw, 0);
     $('ro-mld-e').textContent = fmt(me, 0);
@@ -426,7 +428,7 @@
     chain('trans', dw < 0 ? '▼ 줄어듦' : dw > 0 ? '▲ 늘어남' : '서쪽에 쌓임', cw, windLive);
     chain('up', dw < 0 ? '▼ 약해짐' : dw > 0 ? '▲ 강해짐' : '활발', cw, windLive);
     chain('sste', (dsst > 0 ? '▲ ' : dsst < 0 ? '▼ ' : '') + fmt(se, 1) + ' °C', dsst > 0 ? 'p-nino' : dsst < 0 ? 'p-nina' : '', Math.abs(se - eqE) > 0.08);
-    chain('rain', rise < 166 ? '서태평양' : '▶ 중앙 태평양 쪽', rise < 166 ? '' : 'p-nino', Math.abs(rise - E.walker(w).rise) > 2);
+    chain('rain', rise < 166 ? '서태평양' : E.rainBandEast(s) >= 215 ? '▶ 중앙·동태평양 쪽' : '▶ 중앙 태평양 쪽', rise < 166 ? '' : 'p-nino', Math.abs(rise - E.walker(w).rise) > 2);
     chain('tilt', dtilt < 0 ? '완만해짐' : dtilt > 0 ? '급해짐' : '서쪽이 깊음', dtilt < 0 ? 'p-nino' : dtilt > 0 ? 'p-nina' : '', Math.abs(diff - eqDiff) > 1);
     chain('sl', dtilt < 0 ? '서·동 차이 줄어듦' : dtilt > 0 ? '서·동 차이 커짐' : '서쪽이 높음', dtilt < 0 ? 'p-nino' : dtilt > 0 ? 'p-nina' : '', Math.abs(diff - eqDiff) > 1);
 

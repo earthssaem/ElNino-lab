@@ -678,6 +678,26 @@
     return { x: L.lonToX(268), yT: yT, yB: yT + (yB0 - yT) * clamp(0.25 + 0.75 * U, 0.3, 1.2),
       th: (2.5 + 6 * Math.min(U, 2) / 2) * L.u + 2, a: clamp(0.3 + 0.7 * U, 0.4, 1) };
   };
+  /* 통합과학2: 비가 많이 오는 띠(실측 GPCP 5°S~5°N 강수가 평상시 최대의 75 % 이상, E.rainBandEast)가 상승 기류 중심
+     (E.walker().rise)보다 동쪽으로 넓게 퍼져 있으면, 중심 구름에서 띠의 동쪽 끝까지 이어진 비구름 띠를 그린다.
+     엘니뇨 합성: 중심 192°E(170°W), 띠 동쪽 끝 약 238°E(122°W) — 평상시 월 40~60 mm 이던 곳에 월 200~250 mm.
+     구름 크기·빗줄기 수는 그 경도의 실측 강수에 비례. 중심 구름(상승 기류 화살표)은 그대로 두고 그 뒤에 먼저 그린다.
+     X(lon) → 화면 x, y·r: 중심 구름의 위치·반지름, yRain: 비가 닿는 높이, xMax: 오른쪽 한계 */
+  D.drawRainBand = function (ctx, s, X, y, r, yRain, time, xMax) {
+    var rise = E.walker(s).rise, east = E.rainBandEast(s);
+    if (east - rise < 18) return;
+    var a = clamp((east - rise - 18) / 10, 0, 1), lonE = east - 4;
+    var x0 = X(rise), x1 = Math.min(X(lonE), xMax == null ? Infinity : xMax - r * 0.75);
+    if (x1 - x0 < r) return;
+    var n = Math.max(2, Math.ceil((x1 - x0) / (r * 1.15)));
+    for (var i = n; i >= 1; i--) {   // 먼 쪽부터 그려 중심 구름 쪽이 위에 오게
+      var f = i / n, lon = rise + f * (lonE - rise);
+      var k = clamp(E.rainAt(lon, s) / E.ENSO_RAIN_PEAK0, 0.45, 1);
+      var rr = r * (0.5 + 0.38 * k), x = x0 + f * (x1 - x0), yy = y + (r - rr) * 0.3;
+      D.rain(ctx, x, yy + rr * 0.45, yRain, rr * 1.5, Math.round(2 + 3 * k), time, 0.78 * a);
+      D.cloud(ctx, x, yy, rr, a);
+    }
+  };
   D.WARM_FILL = 'rgba(255,236,214,0.92)'; D.WARM_EDGE = 'rgba(150,50,10,0.65)';
 
   D.drawFlowGlyphs = function (ctx, L, s, o) {
@@ -925,6 +945,8 @@
       });
     }
 
+    // 통합과학2: 중심 구름에서 동쪽으로 이어진 비구름 띠(실측 강수 범위)
+    if (o.simple) D.drawRainBand(ctx, s, function (lon) { return P(lon, 0)[0]; }, cloudY, cloudR, yB + 4 * u, o.motion ? time : 0, P(E.LON_E, 0)[0]);
     // 상승 기류 위의 구름
     D.cloud(ctx, xR, cloudY, cloudR);
     // 동태평양 하강 쪽: 상대적으로 건조(해). 엘니뇨에 가까울수록 흐려짐

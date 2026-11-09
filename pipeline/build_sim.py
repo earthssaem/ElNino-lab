@@ -207,7 +207,9 @@ def main():
         'nino34': {'nino': r(comp_series(n34, months, 'nino')), 'nina': r(comp_series(n34, months, 'nina'))},
         'rain': {'center0': r(rain_center(p0, lonP), 1), 'centerNino': r(rain_center(pN, lonP), 1),
                  'centerNina': r(rain_center(pL, lonP), 1),
-                 'peak0': r(p0.max(), 0), 'peakNino': r(pN.max(), 0), 'peakNina': r(pL.max(), 0)},
+                 'peak0': r(p0.max(), 0), 'peakNino': r(pN.max(), 0), 'peakNina': r(pL.max(), 0),
+                 # 경도별 실제 강수(5°S~5°N, 월 mm): 비가 많이 오는 띠의 범위를 그림에 나타낼 때 쓴다
+                 'lon': r(lonP, 1), 'p0': r(p0, 0), 'pNino': r(pN, 0), 'pNina': r(pL, 0)},
         'pressure': {'darwinNino': r(comp_series(darwin, months, 'nino')), 'darwinNina': r(comp_series(darwin, months, 'nina')),
                      'tahitiNino': r(comp_series(tahiti, months, 'nino')), 'tahitiNina': r(comp_series(tahiti, months, 'nina')),
                      'soiNino': r(comp_series(soi_m, months, 'nino')), 'soiNina': r(comp_series(soi_m, months, 'nina'))},
