@@ -179,6 +179,16 @@
     };
   }
 
+  // 경도별 실제 강수(GPCP, 5°S~5°N, 월 mm): 평상시 + 합성 편차를 상태 m 에 맞춰 섞는다(walker 와 같은 '대기가 느끼는 바다 상태')
+  var RF0 = table(RAIN.lon, RAIN.p0), RFN = table(RAIN.lon, RAIN.pNino), RFL = table(RAIN.lon, RAIN.pNina);
+  function rainAt(lon, s) { var m = sMean(s); return by(m, RFN(lon), RF0(lon), RFL(lon)); }
+  // 비가 많이 오는 띠의 동쪽 끝: 상승 기류 중심에서 동쪽으로, 강수가 평상시 최대의 frac(기본 75 %) 이상인 곳까지
+  function rainBandEast(s, frac) {
+    var thr = RAIN.peak0 * (frac || 0.75), lon = walker(s).rise;
+    while (lon < LON_E && rainAt(lon + 1, s) >= thr) lon += 1;
+    return lon;
+  }
+
   /* ── 남방진동: 다윈·타히티 해면 기압 편차(hPa, 1991~2020 평년 대비 실측 합성) ── */
   var PR = O.pressure;
   function pressure(s) {
@@ -275,7 +285,7 @@
     iso20: iso20, mixedLayer: mixedLayer, temp: temp, depthOf: depthOf,
     column: column, tempAt: tempAt,
     seaLevel: seaLevel, nino34: nino34, phase: phase, stateFromNino34: stateFromNino34,
-    walker: walker, pressure: pressure, soi: soi,
+    walker: walker, rainAt: rainAt, rainBandEast: rainBandEast, ENSO_RAIN_PEAK0: RAIN.peak0, pressure: pressure, soi: soi,
     Ocean: Ocean, OBS: O, RAW_SECTION: RAW, SMOOTH_LON: SMOOTH_LON
   };
 })();
