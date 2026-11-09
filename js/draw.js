@@ -661,9 +661,48 @@
   };
 
   // 정지 화살표: 표층 해수 이동 + 용승
+  /* 통합과학2 개념 모식도(학습지 기준): 화살표가 뜻하는 것만 학습지에 맞추고, 수온·바람 같은 실측·모형 값은 그대로.
+     k: 0 평상시 ~ 1 엘니뇨. 구름(E.walker)과 같은 '대기가 느끼는 바다 상태'를 따르므로 ①에서는 바다가 바뀐 뒤에 바뀐다. */
+  D.ninoAmount = function (s) { return clamp((1 - E.walker(s).east) / 0.45, 0, 1); };
+  // 바닷속 수평 화살표: 평상시 = 서쪽으로 가는 표층 해수, 엘니뇨 = 따뜻한 해수의 동쪽 확장(해류가 늘 동쪽으로 흐른다는 뜻이 아님)
+  D.schemFlow = function (L, s) {
+    var k = D.ninoAmount(s), W = E.wind(s), out = { k: k, y: L.zToY(12) };
+    if (k < 0.5) out.west = { x0: L.lonToX(258), x1: L.lonToX(258 - 38 - 42 * W), th: (2.5 + 4 * W) * L.u + 1.5, a: 1 - 2 * k };
+    if (k > 0.5) { var e = 2 * k - 1; out.east = { x0: L.lonToX(162), x1: L.lonToX(192 + 52 * e), th: (3 + 3 * e) * L.u + 1.5, a: e }; }
+    return out;
+  };
+  // 동태평양 용승: 평상시 크고 뚜렷하게, 엘니뇨(용승 약화) 작고 흐리게. 길이는 평상시 화살표를 기준으로 용승 세기에 비례
+  D.schemUp = function (L, s) {
+    var U = E.upwelling(s), c0 = E.column(268, 0);
+    var yT = L.zToY(Math.max(3, c0.M * 0.3)) + 2, yB0 = L.zToY(Math.min(200, c0.D + 55));
+    return { x: L.lonToX(268), yT: yT, yB: yT + (yB0 - yT) * clamp(0.25 + 0.75 * U, 0.3, 1.2),
+      th: (2.5 + 6 * Math.min(U, 2) / 2) * L.u + 2, a: clamp(0.3 + 0.7 * U, 0.4, 1) };
+  };
+  D.WARM_FILL = 'rgba(255,236,214,0.92)'; D.WARM_EDGE = 'rgba(150,50,10,0.65)';
+
   D.drawFlowGlyphs = function (ctx, L, s, o) {
     var W = E.wind(s), U = E.upwelling(s);
     var fs = clamp(10.5 * L.u + 2.5, 10, 13.5);
+    if (o.simple) {   // 통합과학2: 학습지 방식(위 D.schemFlow·D.schemUp)
+      var sf = D.schemFlow(L, s), su = D.schemUp(L, s);
+      if (sf.west) {
+        ctx.save(); ctx.globalAlpha = 0.9 * sf.west.a;
+        D.blockArrow(ctx, sf.west.x0, sf.west.x1, sf.y, sf.west.th, 'rgba(255,255,255,0.72)', 'rgba(20,30,40,0.35)');
+        ctx.restore();
+        if (o.labels && sf.west.a > 0.3) D.text(ctx, '표층 해수', (sf.west.x0 + sf.west.x1) / 2, sf.y + sf.west.th + fs * 0.8 + 4, { size: fs, weight: 700, color: '#10202a', haloColor: 'rgba(255,255,255,0.8)' });
+      }
+      if (sf.east) {
+        ctx.save(); ctx.globalAlpha = sf.east.a;
+        D.blockArrow(ctx, sf.east.x0, sf.east.x1, sf.y, sf.east.th, D.WARM_FILL, D.WARM_EDGE);
+        ctx.restore();
+        if ((o.labels || o.warmLabel) && sf.east.a > 0.3) D.text(ctx, '따뜻한 해수의 동쪽 확장', (sf.east.x0 + sf.east.x1) / 2, sf.y + sf.east.th + fs * 0.8 + 4, { size: fs, weight: 700, color: '#3a0a06', haloColor: 'rgba(255,235,220,0.85)' });
+      }
+      ctx.save(); ctx.globalAlpha = su.a;
+      D.upArrow(ctx, su.x, su.yB, su.yT, su.th, 'rgba(214,245,255,0.93)', 'rgba(16,40,70,0.6)');
+      ctx.restore();
+      if (o.labels) D.text(ctx, '용승', su.x - su.th - fs * 1.3, (su.yB + su.yT) / 2 + 6, { size: fs + 1, weight: 800, color: '#0b2a44', haloColor: 'rgba(225,248,255,0.9)' });
+      return { xU: su.x };
+    }
     // 표층 해수 이동 (동 → 서)
     var yS = L.zToY(12);
     var x0 = L.lonToX(258), x1 = L.lonToX(258 - 38 - 42 * W);
