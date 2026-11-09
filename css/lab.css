@@ -48,8 +48,8 @@
   font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
   font-size: 14px; line-height: 1.4;
 }
-.labbar-in { max-width: 1280px; margin: 0 auto; padding: 6px 20px; display: flex; align-items: center; gap: 8px; min-height: 48px; }
-html[data-lab="data"] .labbar-in { max-width: 1560px; }
+.labbar-in { padding: 6px 20px; display: flex; align-items: center; gap: 8px; min-height: 48px; }
+html[data-lab="data"] .labbar-in { max-width: 1560px; margin: 0 auto; }   /* 실측자료 탐구는 본문 폭(1560px)에 맞춤 */
 .labbar svg { width: 18px; height: 18px; flex: none; }
 .lb-home {
   display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px 0 6px; margin-left: -6px;

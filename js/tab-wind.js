@@ -144,7 +144,8 @@
   function resize() {
     var wd = Math.round(stage.clientWidth);
     if (!wd) return;
-    var h = wd < 560 ? Math.round(wd * 1.0) : Math.round(clamp(wd * 0.56, 360, 640));
+    // 넓은 화면: 단면과 그 아래 조작부가 한 화면에 들어오도록 창 높이에 맞춤(너무 납작해지지 않게 아래 한계)
+    var h = wd < 560 ? Math.round(wd * 1.0) : Math.round(clamp(Math.min(wd * 0.56, D.fitHeight(stage)), Math.max(300, wd * 0.3), 640));
     if (wd === W && h === H) return;
     W = wd; H = h;
     dpr = Math.min(2, window.devicePixelRatio || 1);
